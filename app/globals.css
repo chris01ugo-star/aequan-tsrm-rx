@@ -1,0 +1,149 @@
+@import "tailwindcss";
+@source "../src";
+
+@theme inline {
+  --color-obsidian: #0b1320;
+  --color-panel: #16253b;
+  --color-well: #111d30;
+  --color-raised: #1e324e;
+  --color-line: #2a486d;
+  --color-ice: #f8fafc;
+  --color-muted: #9fb3c8;
+  --color-cyan-clin: #6ba3de;
+  --color-amber-rx: #f39c12;
+  --color-ok: #22c55e;
+  --color-risk: #ef4444;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
+}
+
+html {
+  color-scheme: dark;
+  background-color: #0b1320;
+  color: #f8fafc;
+}
+
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background-color: #0b1320;
+  color: #f8fafc;
+  font-family: var(--font-sans);
+}
+
+@layer base {
+  button {
+    font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  }
+}
+
+button,
+input,
+select,
+textarea {
+  color-scheme: dark;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.font-mono,
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 1px solid #6ba3de;
+  outline-offset: 0;
+}
+
+input[type="range"].rx-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 14px;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"].rx-range:focus {
+  outline: none;
+}
+
+input[type="range"].rx-range::-webkit-slider-runnable-track {
+  height: 2px;
+  background: #2a486d;
+}
+
+input[type="range"].rx-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 10px;
+  height: 16px;
+  margin-top: -7px;
+  background: #6ba3de;
+  border: 0;
+}
+
+input[type="range"].rx-range::-moz-range-track {
+  height: 2px;
+  background: #2a486d;
+  border: 0;
+}
+
+input[type="range"].rx-range::-moz-range-thumb {
+  width: 10px;
+  height: 16px;
+  background: #6ba3de;
+  border: 0;
+  border-radius: 0;
+}
+
+select.rx-select {
+  background-color: #16253b;
+  color: #f8fafc;
+  border: 1px solid #2a486d;
+  border-radius: 0;
+}
+
+.rx-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #2a486d transparent;
+}
+
+@keyframes rx-flash {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.92;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.rx-flash {
+  animation: rx-flash 400ms linear forwards;
+  background: #f3efe6;
+}
+
+@keyframes rx-acquire {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.rx-acquire {
+  transform-origin: left center;
+  animation: rx-acquire 400ms linear forwards;
+}
