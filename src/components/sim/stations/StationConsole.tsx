@@ -90,12 +90,12 @@ export function StationConsole({
   const drl = shot?.drlDapDGyCm2 ?? DRL_CHEST_PA.dapDGyCm2;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2">
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-[10px] overflow-hidden">
       {mode === "guided" ? (
         <Guide text="Regola del 15%: +15% di kVp permette di dimezzare circa i mAs. Ogni 5 cm di spessore in più chiedono un aggiustamento di esposizione." />
       ) : null}
-      <div className="grid min-h-0 flex-1 gap-2 lg:grid-cols-[minmax(0,1.3fr)_minmax(260px,340px)]">
-        <section className="min-h-0 overflow-hidden rounded-xl border border-[#2A486D]">
+      <div className="grid min-h-0 flex-1 gap-[10px] overflow-hidden lg:grid-cols-[minmax(0,1.3fr)_minmax(260px,340px)]">
+        <section className="flex h-full min-h-0 flex-col overflow-hidden">
           <ViewerPanel
             clinical={clinical}
             technique={technique}
@@ -117,7 +117,7 @@ export function StationConsole({
             onReset={onResetView}
           />
         </section>
-        <aside className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-[#2A486D] bg-[#16253B]">
+        <aside className="h-full min-h-0 overflow-y-auto rounded-xl border border-[#2A486D] bg-[#16253B] pr-1 rx-scroll">
           <div className={`shrink-0 px-3 py-2 text-[12px] ${doorClosed ? "text-[#22C55E]" : "text-[#F39C12]"}`}>
             <p>{doorClosed ? "Porta chiusa · Sala in sicurezza" : "Porta aperta · Erogazione bloccata"}</p>
             <div className="mt-1 flex flex-wrap gap-1">

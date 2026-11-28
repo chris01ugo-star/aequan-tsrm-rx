@@ -35,12 +35,12 @@ export function StationRoom({
 }) {
   const hint = mode === "guided";
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2">
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-2 overflow-hidden">
       {hint ? (
         <Guide text="Criteri: piano sagittale perpendicolare al detettore, DFF 180 cm per limitare l'ingrandimento cardiaco, scapole fuori dai campi polmonari." />
       ) : null}
-      <div className="grid min-h-0 flex-1 gap-2 lg:grid-cols-[minmax(0,62%)_minmax(260px,1fr)]">
-        <section className="min-h-[220px] overflow-hidden rounded-xl border border-[#2A486D]">
+      <div className="grid min-h-0 flex-1 gap-2 overflow-hidden lg:grid-cols-[minmax(0,62%)_minmax(260px,1fr)]">
+        <section className="h-full min-h-0 overflow-hidden rounded-xl border border-[#2A486D]">
           <Room3DViewport technique={technique} roomMode={mode === "guided" ? "training" : "exam"} />
         </section>
         <aside className="min-h-0 overflow-y-auto rounded-xl border border-[#2A486D] bg-[#16253B] px-3 py-2 rx-scroll">
@@ -203,7 +203,7 @@ export function StationRoom({
           </Group>
         </aside>
       </div>
-      <footer className="flex shrink-0 justify-end">
+      <footer className="flex shrink-0 justify-end py-2.5">
         <button type="button" onClick={onNext} className={primaryBtn}>
           Esci in Sala Comandi & Chiudi Porta Piombata →
         </button>

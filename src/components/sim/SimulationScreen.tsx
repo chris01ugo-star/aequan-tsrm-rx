@@ -94,9 +94,14 @@ export function SimulationScreen({
   const clock = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
   const view = { gray, zoom, panX, panY, overlay, tool, onGray, onView, onResetView };
 
+  const stationBody =
+    station >= 3
+      ? "mt-2 grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] gap-[10px] overflow-hidden"
+      : "mt-2 flex min-h-0 flex-1 flex-col overflow-hidden";
+
   return (
-    <div className="flex h-dvh flex-col gap-2 overflow-hidden bg-[#0B1320] p-2 text-[#F8FAFC]">
-      <header className="shrink-0 rounded-xl border border-[#2A486D] bg-[#16253B] px-3 py-2">
+    <div className="flex h-dvh flex-col overflow-hidden bg-[#0B1320] p-2 text-[#F8FAFC]">
+      <header className="sticky top-0 z-30 shrink-0 rounded-xl border border-[#2A486D] bg-[#16253B] px-3 py-2">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="min-w-0 truncate font-display text-base font-bold">
             Caso 01 · {STEPS[station - 1].replace(/^\d+\.\s*/, "")}
@@ -128,6 +133,7 @@ export function SimulationScreen({
           })}
         </ol>
       </header>
+      <div className={stationBody}>
       {station === 1 ? (
         <StationAcceptance
           clinical={clinical}
@@ -192,6 +198,7 @@ export function SimulationScreen({
           onDeliver={onDeliver}
         />
       ) : null}
+      </div>
     </div>
   );
 }

@@ -83,9 +83,9 @@ export function StationQuality({
     (shots.length < 2 || rejectsReady);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2">
-      <div className="grid min-h-0 flex-1 gap-2 lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,420px)]">
-        <section className="min-h-0 overflow-hidden rounded-xl border border-[#2A486D]">
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-[10px] overflow-hidden">
+      <div className="grid min-h-0 flex-1 gap-[10px] overflow-hidden lg:grid-cols-[minmax(0,1.25fr)_minmax(280px,420px)]">
+        <section className="flex h-full min-h-0 flex-col overflow-hidden">
           <ViewerPanel
             clinical={clinical}
             technique={shot?.technique ?? technique}
@@ -107,7 +107,7 @@ export function StationQuality({
             onReset={onResetView}
           />
         </section>
-        <aside className="min-h-0 space-y-3 overflow-y-auto rounded-xl border border-[#2A486D] bg-[#16253B] p-3 rx-scroll">
+        <aside className="h-full min-h-0 space-y-3 overflow-y-auto rounded-xl border border-[#2A486D] bg-[#16253B] p-3 pr-1 rx-scroll">
           <Card title="Criteri di qualità immagine">
             {AXES.map((axis) => (
               <div key={axis.key} className="mt-2">

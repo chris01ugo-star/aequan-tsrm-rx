@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useSyncExternalStore, type CSSProperties, type PointerEvent } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type PointerEvent } from "react";
 import { overlayMarkers } from "@/lib/chestRenderer";
 import { getImageStudioSnapshot, sourceLabel, subscribeImageStudio } from "@/lib/imageStore";
 import { clamp, formatNum } from "@/lib/number";
@@ -69,6 +69,9 @@ export function ViewerPanel({
   onReset,
 }: ViewerPanelProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const bufferRef = useRef<HTMLCanvasElement | null>(null);
+  const [fit, setFit] = useState({ w: 0, h: 0 });
   const drag = useRef<{
     x: number;
     y: number;
@@ -89,10 +92,24 @@ export function ViewerPanel({
   const markers = overlayMarkers(computeGeometry(shown));
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !shot) return;
-    paintLatentToCanvas(canvas, shot.latent, gray);
-  }, [shot, gray]);
+    const stage = stageRef.current;
+    if (!stage) return;
+    const draw = () => {
+      const width = stage.clientWidth;
+      const height = stage.clientHeight;
+      if (width <= 0 || height <= 0) return;
+      const next = fitFrame(width, height, frameW, frameH);
+      setFit((prev) => (prev.w === next.w && prev.h === next.h ? prev : next));
+      const canvas = canvasRef.current;
+      if (!canvas || !shot) return;
+      if (!bufferRef.current) bufferRef.current = document.createElement("canvas");
+      paintDisplay(canvas, bufferRef.current, shot, gray, next.w, next.h);
+    };
+    draw();
+    const observer = new ResizeObserver(draw);
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [shot, gray, frameW, frameH]);
 
   const fieldLeft = ((1 - technique.collW / 43) / 2) * 100;
   const fieldTop = ((1 - technique.collH / 43) / 2) * 100;
@@ -132,107 +149,16 @@ export function ViewerPanel({
     drag.current = null;
   }
 
+  const frameStyle: CSSProperties = {
+    width: fit.w > 0 ? fit.w : "100%",
+    height: fit.h > 0 ? fit.h : "100%",
+    transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
+    transformOrigin: "center center",
+  };
+
   return (
-    <section className="flex min-w-0 flex-1 flex-col bg-obsidian">
-      <div className="relative min-h-0 flex-1 [container-type:size]">
-        <div
-          className="absolute top-1/2 left-1/2"
-          style={{
-            width: `min(100cqw, calc(100cqh * ${frameW} / ${frameH}))`,
-            aspectRatio: `${frameW} / ${frameH}`,
-            transform: "translate(-50%, -50%)",
-          }}
-        >
-          <div
-            className={`absolute inset-0 overflow-hidden bg-black ${shot ? "cursor-crosshair" : ""}`}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={onPointerUp}
-            onWheel={(event) => {
-              const next = clamp(zoom * (event.deltaY > 0 ? 0.9 : 1.1), 1, 5);
-              onView({ zoom: Number(next.toFixed(2)) });
-            }}
-          >
-            <div
-              className="absolute inset-0"
-              style={{
-                transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
-                transformOrigin: "center center",
-              }}
-            >
-              {shot ? (
-                <canvas ref={canvasRef} className="h-full w-full" />
-              ) : (
-                <CenteringField
-                  left={fieldLeft}
-                  top={fieldTop}
-                  shiftX={shiftX}
-                  shiftY={shiftY}
-                  rotation={technique.patientRotationDeg}
-                  lateral={technique.projection === "LL"}
-                />
-              )}
-              {shot && overlay ? (
-                <svg
-                  viewBox={`0 0 ${shot.latent.width} ${shot.latent.height}`}
-                  className="pointer-events-none absolute inset-0 h-full w-full"
-                >
-                  {markers.map((marker) => {
-                    const rightSide = marker.x > 0.58;
-                    return (
-                      <g key={marker.id}>
-                        <circle
-                          cx={marker.x * shot.latent.width}
-                          cy={marker.y * shot.latent.height}
-                          r="4"
-                          fill="none"
-                          stroke="#6BA3DE"
-                        />
-                        <text
-                          x={marker.x * shot.latent.width + (rightSide ? -8 : 8)}
-                          y={marker.y * shot.latent.height - 8}
-                          fill="#6BA3DE"
-                          fontSize="13"
-                          fontFamily="ui-monospace, monospace"
-                          textAnchor={rightSide ? "end" : "start"}
-                        >
-                          {marker.label}
-                        </text>
-                      </g>
-                    );
-                  })}
-                </svg>
-              ) : null}
-            </div>
-          </div>
-        </div>
-
-            <Corner className="top-2 left-2" lines={topLeft(clinical, shot, sourceLine)} />
-        <Corner className="top-2 right-2 text-right" lines={topRight(shown)} />
-        <Corner className="bottom-2 left-2" lines={bottomLeft(shown, shot)} />
-        <Corner
-          className="right-2 bottom-2 text-right"
-          lines={bottomRight(gray, zoom, dose.ei, dose.di, Boolean(shot))}
-        />
-
-        {dirty && shot ? (
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 border border-[#8A5A12] bg-obsidian px-2 py-1 font-mono text-[10px] tracking-[0.12em] text-amber-rx">
-            GENERATORE MODIFICATO — IMMAGINE NON AGGIORNATA
-          </div>
-        ) : null}
-
-        {acquiring ? (
-          <>
-            <div className="rx-flash pointer-events-none absolute inset-0" />
-            <div className="rx-acquire pointer-events-none absolute top-0 right-0 left-0 h-px bg-amber-rx" />
-            <div className="pointer-events-none absolute top-6 left-1/2 -translate-x-1/2 font-mono text-[11px] tracking-[0.22em] text-obsidian">
-              RAGGI X
-            </div>
-          </>
-        ) : null}
-      </div>
-
-      <div className="flex min-h-9 w-full min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 border-t border-line bg-panel px-2 py-1">
+    <section className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-[#2A486D] bg-[#000000]">
+      <div className="relative z-20 flex shrink-0 flex-wrap items-center gap-x-1.5 gap-y-1 border-b border-[#2A486D] bg-[#111D30] px-3 py-2">
         <span className="text-[9px] tracking-[0.14em] text-muted">W</span>
         <input
           className="rx-range w-16"
@@ -287,15 +213,129 @@ export function ViewerPanel({
           </ToolButton>
         </div>
       </div>
+
+      <div ref={stageRef} className="relative min-h-[260px] w-full flex-1 overflow-hidden bg-[#000000]">
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div
+            className={`relative ${shot ? "cursor-crosshair" : ""}`}
+            style={frameStyle}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onWheel={(event) => {
+              const next = clamp(zoom * (event.deltaY > 0 ? 0.9 : 1.1), 1, 5);
+              onView({ zoom: Number(next.toFixed(2)) });
+            }}
+          >
+            {shot ? (
+              <canvas ref={canvasRef} className="block h-full w-full" />
+            ) : (
+              <CenteringField
+                left={fieldLeft}
+                top={fieldTop}
+                shiftX={shiftX}
+                shiftY={shiftY}
+                rotation={technique.patientRotationDeg}
+                lateral={technique.projection === "LL"}
+              />
+            )}
+            {shot && overlay ? (
+              <svg
+                viewBox={`0 0 ${shot.latent.width} ${shot.latent.height}`}
+                className="pointer-events-none absolute inset-0 h-full w-full"
+              >
+                {markers.map((marker) => {
+                  const rightSide = marker.x > 0.58;
+                  return (
+                    <g key={marker.id}>
+                      <circle
+                        cx={marker.x * shot.latent.width}
+                        cy={marker.y * shot.latent.height}
+                        r="4"
+                        fill="none"
+                        stroke="#6BA3DE"
+                      />
+                      <text
+                        x={marker.x * shot.latent.width + (rightSide ? -8 : 8)}
+                        y={marker.y * shot.latent.height - 8}
+                        fill="#6BA3DE"
+                        fontSize="13"
+                        fontFamily="ui-monospace, monospace"
+                        textAnchor={rightSide ? "end" : "start"}
+                      >
+                        {marker.label}
+                      </text>
+                    </g>
+                  );
+                })}
+              </svg>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="pointer-events-none absolute inset-0 z-10">
+          <Corner className="top-2 left-2" lines={topLeft(clinical, shot, sourceLine)} />
+          <Corner className="top-2 right-2 text-right" lines={topRight(shown)} />
+          <Corner className="bottom-2 left-2" lines={bottomLeft(shown, shot)} />
+          <Corner
+            className="right-2 bottom-2 text-right"
+            lines={bottomRight(gray, zoom, dose.ei, dose.di, Boolean(shot))}
+          />
+          {dirty && shot ? (
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 border border-[#8A5A12] bg-[#0B1320] px-2 py-1 font-mono text-[10px] tracking-[0.12em] text-[#F39C12]">
+              GENERATORE MODIFICATO — IMMAGINE NON AGGIORNATA
+            </div>
+          ) : null}
+          {acquiring ? (
+            <>
+              <div className="rx-flash absolute inset-0" />
+              <div className="rx-acquire absolute top-0 right-0 left-0 h-px bg-[#F39C12]" />
+              <div className="absolute top-6 left-1/2 -translate-x-1/2 font-mono text-[11px] tracking-[0.22em] text-[#0B1320]">
+                RAGGI X
+              </div>
+            </>
+          ) : null}
+        </div>
+      </div>
+
       {onSelectShot ? (
-        <Filmstrip
-          shots={shots}
-          selectedIndex={selectedIndex}
-          onSelectShot={onSelectShot}
-        />
+        <Filmstrip shots={shots} selectedIndex={selectedIndex} onSelectShot={onSelectShot} />
       ) : null}
     </section>
   );
+}
+
+function fitFrame(width: number, height: number, frameW: number, frameH: number) {
+  const aspect = frameW / Math.max(1, frameH);
+  let cssW = width;
+  let cssH = cssW / aspect;
+  if (cssH > height) {
+    cssH = height;
+    cssW = cssH * aspect;
+  }
+  return { w: Math.max(1, Math.floor(cssW)), h: Math.max(1, Math.floor(cssH)) };
+}
+
+function paintDisplay(
+  canvas: HTMLCanvasElement,
+  buffer: HTMLCanvasElement,
+  shot: ExposureShot,
+  gray: GrayWindow,
+  cssW: number,
+  cssH: number,
+) {
+  paintLatentToCanvas(buffer, shot.latent, gray);
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const pixelW = Math.max(1, Math.round(cssW * dpr));
+  const pixelH = Math.max(1, Math.round(cssH * dpr));
+  if (canvas.width !== pixelW || canvas.height !== pixelH) {
+    canvas.width = pixelW;
+    canvas.height = pixelH;
+  }
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(buffer, 0, 0, pixelW, pixelH);
 }
 
 function Filmstrip({
@@ -308,7 +348,7 @@ function Filmstrip({
   onSelectShot: (index: number) => void;
 }) {
   return (
-    <div className="flex h-14 shrink-0 items-center gap-2 overflow-x-auto border-t border-line bg-panel px-2">
+    <div className="relative z-20 flex shrink-0 items-center gap-2 overflow-x-auto border-t border-[#2A486D] bg-[#0D1626] px-3 py-2">
       <span className="shrink-0 text-[9px] tracking-[0.14em] text-muted uppercase">Scatti</span>
       {shots.length === 0 ? (
         <span className="text-[11px] text-muted">Nessuna esposizione in sessione</span>
