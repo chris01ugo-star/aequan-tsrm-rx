@@ -43,7 +43,7 @@ export function CaseLibrary({
     <div className="mx-auto flex max-w-[1180px] flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="font-display text-[30px] font-semibold text-[#14233b]">Scenari clinici</h1>
+          <h1 className="font-display text-[30px] font-semibold text-[#1f2b3b]">Scenari clinici</h1>
           <p className="mt-1 max-w-xl text-[15px] text-slate-500">
             Radiologia tradizionale. Leggi la richiesta clinica, completa le verifiche di sicurezza ed esegui l’esame in sala simulata.
           </p>
@@ -54,14 +54,14 @@ export function CaseLibrary({
         </button>
       </header>
 
-      <div className="flex gap-1 border-b border-[#e3e9f1]">
+      <div className="flex gap-1 border-b border-[#e7eaef]">
         {FILTERS.map((item) => (
           <button
             key={item.id}
             type="button"
             onClick={() => setFilter(item.id)}
             className={`-mb-px border-b-2 px-4 py-2.5 text-[14px] ${
-              filter === item.id ? "border-[#123a6b] font-medium text-[#123a6b]" : "border-transparent text-slate-500 hover:text-[#123a6b]"
+              filter === item.id ? "border-[#2d4f7a] font-medium text-[#2d4f7a]" : "border-transparent text-slate-500 hover:text-[#2d4f7a]"
             }`}
           >
             {item.label}
@@ -82,20 +82,20 @@ export function CaseLibrary({
                     <Check size={13} /> Completato
                   </span>
                 ) : item.ready && inProgress ? (
-                  <span className="rounded-md bg-[#e8f0fa] px-2 py-0.5 text-[12px] font-medium text-[#123a6b]">In corso</span>
+                  <span className="rounded-md bg-[#edf1f6] px-2 py-0.5 text-[12px] font-medium text-[#2d4f7a]">In corso</span>
                 ) : !item.ready ? (
                   <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[12px] text-slate-500">
                     <Lock size={12} /> In preparazione
                   </span>
                 ) : null}
               </div>
-              <h2 className="mt-3 font-display text-[20px] font-semibold text-[#14233b]">{item.title}</h2>
+              <h2 className="mt-3 font-display text-[20px] font-semibold text-[#1f2b3b]">{item.title}</h2>
               <p className="mt-1 font-display text-[15px] text-slate-500 italic">{item.detail}</p>
               <button
                 type="button"
                 disabled={!item.ready}
                 onClick={() => setBriefing(true)}
-                className="mt-6 inline-flex items-center gap-2 self-start text-[14px] font-medium text-[#123a6b] disabled:text-slate-400"
+                className="mt-6 inline-flex items-center gap-2 self-start text-[14px] font-medium text-[#2d4f7a] disabled:text-slate-400"
               >
                 {item.ready ? "Apri richiesta clinica" : "Non ancora disponibile"}
                 {item.ready ? <ArrowRight size={15} /> : null}
@@ -110,7 +110,7 @@ export function CaseLibrary({
         <p className="mt-1 text-sm text-slate-500">Disponibili nei prossimi livelli del percorso.</p>
         <ul className="mt-4 flex flex-wrap gap-2">
           {OTHER_MODALITIES.map((label) => (
-            <li key={label} className="inline-flex items-center gap-1.5 rounded-md border border-[#e3e9f1] px-3 py-1.5 text-[13px] text-slate-500">
+            <li key={label} className="inline-flex items-center gap-1.5 rounded-md border border-[#e7eaef] px-3 py-1.5 text-[13px] text-slate-500">
               <Lock size={12} />
               {label}
             </li>

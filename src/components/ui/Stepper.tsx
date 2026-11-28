@@ -12,22 +12,22 @@ export function Stepper({ steps, current }: { steps: string[]; current: number }
           return (
             <Fragment key={label}>
               {index > 0 ? (
-                <li aria-hidden="true" className={`h-px min-w-6 flex-1 ${index <= current ? "bg-[#123a6b]" : "bg-[#d5deea]"}`} />
+                <li aria-hidden="true" className={`h-px min-w-6 flex-1 ${index <= current ? "bg-[#2d4f7a]" : "bg-[#dde2e9]"}`} />
               ) : null}
               <li className="flex shrink-0 items-center gap-3">
                 <span
                   className={`grid h-8 w-8 place-items-center rounded-full border text-[13px] font-semibold ${
                     on
-                      ? "border-[#123a6b] bg-[#123a6b] text-white"
+                      ? "border-[#2d4f7a] bg-[#2d4f7a] text-white"
                       : done
-                        ? "border-[#123a6b] bg-white text-[#123a6b]"
+                        ? "border-[#2d4f7a] bg-white text-[#2d4f7a]"
                         : "border-[#c7d3e2] bg-white text-slate-500"
                   }`}
                 >
                   {done ? <Check size={15} strokeWidth={2.5} /> : index + 1}
                 </span>
                 <span
-                  className={`text-[14px] ${on ? "font-semibold text-[#123a6b]" : done ? "text-[#14233b]" : "text-slate-500"} ${
+                  className={`text-[14px] ${on ? "font-semibold text-[#2d4f7a]" : done ? "text-[#1f2b3b]" : "text-slate-500"} ${
                     on ? "" : "hidden sm:inline"
                   }`}
                 >

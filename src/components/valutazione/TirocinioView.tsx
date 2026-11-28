@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, BookOpen, CalendarCheck, Check, ClipboardCheck, GraduationCap, Maximize2, Stethoscope } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { useMemo, useSyncExternalStore, type ReactNode } from "react";
 import { card, primaryBtn, secondaryBtn } from "@/components/ui/buttons";
 import { formatNum } from "@/lib/number";
@@ -156,14 +156,13 @@ export function TirocinioView({
 
   return (
     <div className="mx-auto flex max-w-[1180px] flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
-      <Hero />
+      <Hero done={completed.filter(Boolean).length} />
 
       <div className="grid items-start gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
         <aside className={`${card} p-5`}>
-          <div className="flex items-start gap-3 border-b border-[#e3e9f1] pb-4">
-            <CalendarCheck size={20} strokeWidth={1.75} className="mt-0.5 text-[#123a6b]" />
+          <div className="flex items-start gap-3 border-b border-[#e7eaef] pb-4">
             <div>
-              <p className="font-display text-[16px] font-semibold">Tirocinio in Radiologia</p>
+              <p className="text-[15px] font-semibold">Tirocinio in Radiologia</p>
               <p className="text-[13px] text-slate-500">A.A. 2026/2027</p>
             </div>
           </div>
@@ -176,23 +175,23 @@ export function TirocinioView({
                   <button
                     type="button"
                     onClick={() => patch({ step: index })}
-                    className={`flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left transition ${
-                      on ? "bg-[#e8f0fa]" : "hover:bg-[#f5f8fc]"
+                    className={`flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition ${
+                      on ? "bg-[#edf1f6]" : "hover:bg-[#f4f6f9]"
                     }`}
                   >
                     <span
                       className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border text-[13px] font-semibold ${
                         on
-                          ? "border-[#123a6b] bg-[#123a6b] text-white"
+                          ? "border-[#2d4f7a] bg-[#2d4f7a] text-white"
                           : done
-                            ? "border-[#123a6b] bg-[#123a6b] text-white"
+                            ? "border-[#2d4f7a] bg-[#2d4f7a] text-white"
                             : "border-[#c7d3e2] bg-white text-slate-500"
                       }`}
                     >
                       {done ? <Check size={15} strokeWidth={2.5} /> : index + 1}
                     </span>
                     <span className="hidden min-w-0 sm:block">
-                      <span className={`block text-[14px] font-semibold ${on ? "text-[#123a6b]" : "text-[#14233b]"}`}>
+                      <span className={`block text-[14px] font-semibold ${on ? "text-[#2d4f7a]" : "text-[#1f2b3b]"}`}>
                         {step.title}
                       </span>
                       <span className="block text-[12px] text-slate-500">{step.detail}</span>
@@ -206,8 +205,8 @@ export function TirocinioView({
 
         <section className={`${card} p-5 sm:p-7`}>
           {state.step === 0 ? (
-            <Section icon={<ClipboardCheck size={22} strokeWidth={1.75} />} title="Accesso" subtitle="Il codice di tirocinio è stato verificato.">
-              <div className="rounded-xl border border-[#e3e9f1] bg-[#f8fafd] p-5">
+            <Section step={0} title="Accesso" subtitle="Il codice di tirocinio è stato verificato.">
+              <div className="rounded-xl border border-[#e7eaef] bg-[#f8fafd] p-5">
                 <dl className="grid gap-4 text-sm sm:grid-cols-3">
                   <Field k="Codice tirocinio" v="RAD-TSRM-2026-014" />
                   <Field k="Sede" v="Radiologia · Polo didattico" />
@@ -230,8 +229,8 @@ export function TirocinioView({
           ) : null}
 
           {state.step === 2 ? (
-            <Section icon={<Stethoscope size={22} strokeWidth={1.75} />} title="Valutazione pratica" subtitle="Esegui il caso clinico in simulazione. Il punteggio viene acquisito al termine del debriefing.">
-              <div className="flex flex-col gap-4 rounded-xl border border-[#e3e9f1] p-5 sm:flex-row sm:items-center sm:justify-between">
+            <Section step={2} title="Valutazione pratica" subtitle="Esegui il caso clinico in simulazione. Il punteggio viene acquisito al termine del debriefing.">
+              <div className="flex flex-col gap-4 rounded-xl border border-[#e7eaef] p-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-display text-[18px] font-semibold">Caso 01 — Torace PA</p>
                   <p className="mt-0.5 text-sm text-slate-500 italic">Sospetta polmonite lobare destra</p>
@@ -239,7 +238,7 @@ export function TirocinioView({
                     {practical ? (
                       <>
                         Ultimo esito:{" "}
-                        <strong className="text-[#123a6b]">
+                        <strong className="text-[#2d4f7a]">
                           {formatNum(practical.score, 1)} / {practical.max}
                         </strong>
                       </>
@@ -258,8 +257,8 @@ export function TirocinioView({
           ) : null}
 
           {state.step === 3 ? (
-            <Section icon={<GraduationCap size={22} strokeWidth={1.75} />} title="Autovalutazione" subtitle="Indica il livello di autonomia raggiunto per ciascuna competenza (1 = guidato, 5 = autonomo).">
-              <ul className="divide-y divide-[#e3e9f1] rounded-xl border border-[#e3e9f1]">
+            <Section step={3} title="Autovalutazione" subtitle="Indica il livello di autonomia raggiunto per ciascuna competenza (1 = guidato, 5 = autonomo).">
+              <ul className="divide-y divide-[#e7eaef] rounded-xl border border-[#e7eaef]">
                 {COMPETENCES.map((label, index) => (
                   <li key={label} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-[15px]">{label}</span>
@@ -274,7 +273,7 @@ export function TirocinioView({
                             aria-checked={on}
                             onClick={() => patch({ self: state.self.map((item, i) => (i === index ? value : item)) })}
                             className={`h-9 w-9 rounded-lg border text-sm font-medium ${
-                              on ? "border-[#123a6b] bg-[#123a6b] text-white" : "border-[#d5deea] bg-white text-slate-600 hover:border-[#123a6b]"
+                              on ? "border-[#2d4f7a] bg-[#2d4f7a] text-white" : "border-[#dde2e9] bg-white text-slate-600 hover:border-[#2d4f7a]"
                             }`}
                           >
                             {value}
@@ -322,46 +321,61 @@ function Theory({
   onDone: () => void;
 }) {
   const question = QUESTIONS[index];
-  const percent = Math.round(((index + 1) / QUESTIONS.length) * 100);
+  const answeredCount = QUESTIONS.filter((item) => answers[item.id] !== undefined).length;
   const last = index === QUESTIONS.length - 1;
 
   return (
     <div>
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex items-start gap-4">
-          <IconBox>
-            <BookOpen size={22} strokeWidth={1.75} />
-          </IconBox>
-          <div>
-            <h2 className="font-display text-[24px] font-semibold text-[#14233b]">Valutazione teorica</h2>
-            <p className="mt-0.5 text-sm text-slate-500">Verifica le tue conoscenze sui principali argomenti trattati durante il tirocinio.</p>
-          </div>
-        </div>
-        <div className="w-full sm:w-56">
-          <p className="text-[13px] text-slate-600">
-            Domanda {index + 1} di {QUESTIONS.length}
+      <header className="border-b border-[#eef0f3] pb-5">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="text-[13px] text-slate-500">Sezione 2 di {STEPS.length}</p>
+          <p className="text-[13px] text-slate-500">
+            {answeredCount} di {QUESTIONS.length} risposte date
           </p>
-          <div className="mt-2 flex items-center gap-3">
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#e6ecf3]">
-              <div className="h-full rounded-full bg-[#123a6b] transition-all" style={{ width: `${percent}%` }} />
-            </div>
-            <span className="text-[15px] font-semibold tabular-nums">{percent}%</span>
-          </div>
+        </div>
+        <h2 className="mt-1 font-display text-[24px] font-semibold text-[#1f2b3b]">Valutazione teorica</h2>
+        <p className="mt-1 text-[15px] text-slate-600">Dieci domande sugli argomenti del tirocinio. Puoi tornare indietro e cambiare risposta fino all’invio finale.</p>
+        <div className="mt-4 flex flex-wrap gap-1.5" aria-label="Domande">
+          {QUESTIONS.map((item, i) => {
+            const on = i === index;
+            const done = answers[item.id] !== undefined;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onIndex(i)}
+                aria-label={`Domanda ${i + 1}`}
+                aria-current={on ? "step" : undefined}
+                className={`h-8 w-8 rounded-lg text-[13px] font-medium tabular-nums transition ${
+                  on
+                    ? "bg-[#2d4f7a] text-white"
+                    : done
+                      ? "bg-[#edf1f6] text-[#2d4f7a] hover:bg-[#e2e8f0]"
+                      : "border border-[#e3e7ed] text-slate-500 hover:border-[#c3cddb]"
+                }`}
+              >
+                {i + 1}
+              </button>
+            );
+          })}
         </div>
       </header>
 
-      <div className="mt-6 rounded-xl border border-[#e3e9f1] p-5 sm:p-6">
+      <div className="mt-6">
         <div className={`grid gap-6 ${question.image ? "md:grid-cols-[minmax(0,1fr)_280px]" : ""}`}>
           <fieldset>
-            <legend className="font-display text-[19px] leading-snug font-semibold text-[#14233b]">{question.prompt}</legend>
+            <legend className="text-[18px] leading-snug font-semibold text-[#1f2b3b]">
+              <span className="mr-2 text-slate-400 tabular-nums">{index + 1}.</span>
+              {question.prompt}
+            </legend>
             <div className="mt-5 space-y-3">
               {question.options.map((option, optionIndex) => {
                 const selected = answers[question.id] === optionIndex;
                 return (
                   <label
                     key={option}
-                    className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-[15px] transition ${
-                      selected ? "border-[#bcd2ee] bg-[#e8f0fa]" : "border-[#dfe6ef] bg-white hover:bg-[#f8fafd]"
+                    className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-[15px] transition ${
+                      selected ? "border-[#bcd2ee] bg-[#edf1f6]" : "border-[#dfe6ef] bg-white hover:bg-[#f8fafd]"
                     }`}
                   >
                     <input
@@ -369,7 +383,7 @@ function Theory({
                       name={question.id}
                       checked={selected}
                       onChange={() => onAnswer(question.id, optionIndex)}
-                      className="h-[18px] w-[18px] accent-[#123a6b]"
+                      className="h-[18px] w-[18px] accent-[#2d4f7a]"
                     />
                     {option}
                   </label>
@@ -431,9 +445,9 @@ function Final({
   ];
 
   return (
-    <Section icon={<ClipboardCheck size={22} strokeWidth={1.75} />} title="Valutazione finale" subtitle="Riepilogo delle sezioni. L’invio consolida la valutazione su questo dispositivo.">
+    <Section step={4} title="Valutazione finale" subtitle="Riepilogo delle sezioni. L’invio consolida la valutazione su questo dispositivo.">
       <div className="grid gap-5 md:grid-cols-[240px_minmax(0,1fr)]">
-        <div className="rounded-xl border border-[#e3e9f1] bg-[#f8fafd] p-5">
+        <div className="rounded-xl border border-[#e7eaef] bg-[#f8fafd] p-5">
           <p className="text-[13px] text-slate-500">Punteggio complessivo</p>
           <p className="mt-1 font-display text-[44px] leading-none font-semibold tabular-nums">
             {total}
@@ -462,7 +476,7 @@ function Final({
                   {row.value} / {row.max}
                 </span>
                 <span className="col-span-2 h-2 overflow-hidden rounded-full bg-[#e6ecf3]">
-                  <span className="block h-full rounded-full bg-[#123a6b]" style={{ width: `${(row.value / row.max) * 100}%` }} />
+                  <span className="block h-full rounded-full bg-[#2d4f7a]" style={{ width: `${(row.value / row.max) * 100}%` }} />
                 </span>
               </li>
             ))}
@@ -488,25 +502,15 @@ function Final({
   );
 }
 
-function Section({
-  icon,
-  title,
-  subtitle,
-  children,
-}: {
-  icon: ReactNode;
-  title: string;
-  subtitle: string;
-  children: ReactNode;
-}) {
+function Section({ step, title, subtitle, children }: { step: number; title: string; subtitle: string; children: ReactNode }) {
   return (
     <div>
-      <header className="mb-6 flex items-start gap-4">
-        <IconBox>{icon}</IconBox>
-        <div>
-          <h2 className="font-display text-[24px] font-semibold text-[#14233b]">{title}</h2>
-          <p className="mt-0.5 max-w-2xl text-sm text-slate-500">{subtitle}</p>
-        </div>
+      <header className="mb-6 border-b border-[#eef0f3] pb-5">
+        <p className="text-[13px] text-slate-500">
+          Sezione {step + 1} di {STEPS.length}
+        </p>
+        <h2 className="mt-1 font-display text-[24px] font-semibold text-[#1f2b3b]">{title}</h2>
+        <p className="mt-1 max-w-2xl text-[15px] leading-relaxed text-slate-600">{subtitle}</p>
       </header>
       {children}
     </div>
@@ -541,28 +545,27 @@ function Field({ k, v }: { k: string; v: string }) {
   );
 }
 
-function IconBox({ children }: { children: ReactNode }) {
+function Hero({ done }: { done: number }) {
   return (
-    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#e8f0fa] text-[#123a6b]">{children}</span>
-  );
-}
-
-function Hero() {
-  return (
-    <section className="relative overflow-hidden rounded-2xl border border-[#e3e9f1] bg-gradient-to-r from-[#f7f9fc] via-[#eef3f9] to-[#dfe8f3]">
+    <section className="relative overflow-hidden rounded-2xl border border-[#e7eaef] bg-gradient-to-r from-[#fafbfc] via-[#f1f4f8] to-[#e6ecf3]">
       <Colonnade />
       <div className="relative flex items-center gap-5 px-6 py-8 sm:px-10 sm:py-10">
-        <span className="hidden h-16 w-16 shrink-0 place-items-center rounded-xl bg-white/80 text-[#123a6b] shadow-sm sm:grid">
-          <GraduationCap size={30} strokeWidth={1.5} />
-        </span>
         <span className="hidden h-16 w-[2px] bg-[#c9a35c] sm:block" />
         <div className="max-w-xl">
-          <h1 className="font-display text-[30px] leading-tight font-semibold text-[#14233b] sm:text-[36px]">
+          <h1 className="font-display text-[30px] leading-tight font-semibold text-[#1f2b3b] sm:text-[36px]">
             Valutazione del tirocinio
           </h1>
           <p className="mt-2 text-[15px] leading-relaxed text-slate-600">
-            Completa tutte le sezioni per la valutazione finale delle competenze acquisite durante il tirocinio in Radiologia.
+            Completa le cinque sezioni nell’ordine indicato. I progressi vengono salvati automaticamente.
           </p>
+          <div className="mt-4 flex items-center gap-3">
+            <div className="h-1.5 w-40 overflow-hidden rounded-full bg-white/80">
+              <div className="h-full rounded-full bg-[#2d4f7a]" style={{ width: `${(done / STEPS.length) * 100}%` }} />
+            </div>
+            <span className="text-[13px] text-slate-600">
+              {done} di {STEPS.length} sezioni completate
+            </span>
+          </div>
         </div>
       </div>
     </section>
@@ -574,7 +577,7 @@ function Colonnade() {
     <svg
       viewBox="0 0 520 200"
       preserveAspectRatio="xMaxYMid slice"
-      className="pointer-events-none absolute inset-y-0 right-0 h-full w-[62%] opacity-70 [mask-image:linear-gradient(to_right,transparent,black_35%)]"
+      className="pointer-events-none absolute inset-y-0 right-0 h-full w-[62%] opacity-50 [mask-image:linear-gradient(to_right,transparent,black_35%)]"
       aria-hidden="true"
     >
       <defs>
@@ -606,7 +609,7 @@ function Colonnade() {
 
 function CtImage() {
   return (
-    <figure className="relative self-start overflow-hidden rounded-xl bg-black">
+    <figure className="relative self-start overflow-hidden rounded-2xl bg-black">
       <svg viewBox="0 0 280 210" className="h-auto w-full" role="img" aria-label="TC del torace, finestra polmonare, con nodulo nel lobo inferiore sinistro">
         <rect width="280" height="210" fill="#000" />
         <ellipse cx="140" cy="112" rx="128" ry="88" fill="#6b6b6b" />
@@ -624,9 +627,7 @@ function CtImage() {
         <circle cx="194" cy="140" r="11" fill="#e4e4e4" />
         <circle cx="194" cy="140" r="11" fill="none" stroke="#f5f5f5" strokeWidth="1" strokeDasharray="2 2" />
       </svg>
-      <span className="absolute right-3 bottom-3 grid h-8 w-8 place-items-center rounded-md bg-black/60 text-white">
-        <Maximize2 size={15} />
-      </span>
+      <figcaption className="bg-[#111] px-3 py-1.5 text-[12px] text-white/70">TC torace, finestra polmonare</figcaption>
     </figure>
   );
 }

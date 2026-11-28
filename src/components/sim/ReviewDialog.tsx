@@ -80,7 +80,7 @@ export function ReviewDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="review-title"
-        className="flex max-h-[calc(100dvh-16px)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-[#14233b]"
+        className="flex max-h-[calc(100dvh-16px)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-[#1f2b3b]"
       >
         <header className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
           <h2 id="review-title" className="font-display text-lg font-semibold">
@@ -155,7 +155,7 @@ function Choice({ on, onClick, children }: { on: boolean; onClick: () => void; c
       type="button"
       onClick={onClick}
       className={`h-10 flex-1 rounded-xl text-xs font-semibold ${
-        on ? "bg-[#123a6b] text-white" : "border border-slate-200 bg-white text-slate-500"
+        on ? "bg-[#2d4f7a] text-white" : "border border-slate-200 bg-white text-slate-500"
       }`}
     >
       {children}

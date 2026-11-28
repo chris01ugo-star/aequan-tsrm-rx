@@ -128,7 +128,7 @@ export function ViewerPanel({
 
   return (
     <section className="flex min-w-0 flex-1 flex-col bg-white">
-      <div className="relative h-[min(64vh,540px)] min-h-[300px] w-full bg-black">
+      <div className="relative h-[min(56vh,520px)] min-h-[300px] w-full bg-black">
         <div
           className="absolute top-1/2 left-1/2 h-full max-w-full"
           style={{

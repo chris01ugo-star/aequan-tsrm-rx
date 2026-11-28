@@ -31,7 +31,7 @@ export function BriefingDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="briefing-title"
-        className="max-h-[calc(100dvh-24px)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white text-[#14233b] rx-scroll"
+        className="max-h-[calc(100dvh-24px)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white text-[#1f2b3b] rx-scroll"
       >
         <header className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div>

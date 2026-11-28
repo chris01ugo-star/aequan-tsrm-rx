@@ -3,7 +3,6 @@
 import {
   BarChart3,
   Bell,
-  ChevronDown,
   CircleHelp,
   Database,
   Folder,
@@ -17,12 +16,28 @@ import { useState, type ReactNode } from "react";
 
 export type DashView = "dashboard" | "library" | "archive" | "report" | "bank" | "settings";
 
-const NAV: { id: DashView; label: string; icon: typeof Home }[] = [
-  { id: "dashboard", label: "Dashboard", icon: Home },
-  { id: "library", label: "Scenari clinici", icon: Layers },
-  { id: "archive", label: "Archivio sessioni", icon: Folder },
-  { id: "report", label: "Report", icon: BarChart3 },
-  { id: "bank", label: "Banca dati casi", icon: Database },
+const NAV: { group: string; items: { id: DashView; label: string; icon: typeof Home }[] }[] = [
+  {
+    group: "Formazione",
+    items: [
+      { id: "dashboard", label: "Valutazione tirocinio", icon: Home },
+      { id: "library", label: "Scenari clinici", icon: Layers },
+    ],
+  },
+  {
+    group: "Risultati",
+    items: [
+      { id: "archive", label: "Sessioni svolte", icon: Folder },
+      { id: "report", label: "Report", icon: BarChart3 },
+    ],
+  },
+  {
+    group: "Materiali",
+    items: [
+      { id: "bank", label: "Banca dati casi", icon: Database },
+      { id: "settings", label: "Impostazioni", icon: Settings },
+    ],
+  },
 ];
 
 export function DashboardShell({
@@ -41,11 +56,11 @@ export function DashboardShell({
   const [popover, setPopover] = useState<"bell" | "help" | null>(null);
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-[#f3f6fa] text-[#14233b]">
-      <header className="relative z-30 flex h-[72px] shrink-0 items-center gap-3 border-b border-[#e3e9f1] bg-white px-4 sm:px-8">
+    <div className="flex h-dvh flex-col overflow-hidden bg-[#f6f7f9] text-[#1f2b3b]">
+      <header className="relative z-30 flex h-[72px] shrink-0 items-center gap-3 border-b border-[#e7eaef] bg-white px-4 sm:px-8">
         <button
           type="button"
-          className="grid h-10 w-10 place-items-center rounded-lg text-[#123a6b] hover:bg-slate-100 lg:hidden"
+          className="grid h-10 w-10 place-items-center rounded-lg text-[#2d4f7a] hover:bg-slate-100 lg:hidden"
           aria-label={menu ? "Chiudi menu" : "Apri menu"}
           onClick={() => setMenu((value) => !value)}
         >
@@ -59,20 +74,19 @@ export function DashboardShell({
           <IconButton label="Supporto" onClick={() => setPopover(popover === "help" ? null : "help")}>
             <CircleHelp size={19} />
           </IconButton>
-          <span className="mx-2 hidden h-8 w-px bg-[#e3e9f1] sm:block" />
+          <span className="mx-2 hidden h-8 w-px bg-[#e7eaef] sm:block" />
           <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-full bg-[#e6eef8] font-display text-[14px] font-semibold text-[#123a6b]">
+            <span className="grid h-10 w-10 place-items-center rounded-full bg-[#edf1f6] text-[13px] font-semibold text-[#2d4f7a]">
               RC
             </span>
             <span className="hidden leading-tight md:block">
-              <span className="block font-display text-[15px] font-semibold">Dott.ssa R. Conti</span>
+              <span className="block text-[14px] font-medium">Dott.ssa R. Conti</span>
               <span className="block text-[12px] text-slate-500">Università di Milano</span>
             </span>
-            <ChevronDown size={16} className="hidden text-slate-400 md:block" />
           </div>
         </div>
         {popover ? (
-          <div className="absolute top-[64px] right-4 z-40 w-72 rounded-xl border border-[#e3e9f1] bg-white p-4 text-sm leading-relaxed text-slate-600 shadow-lg sm:right-8">
+          <div className="absolute top-[64px] right-4 z-40 w-72 rounded-xl border border-[#e7eaef] bg-white p-4 text-sm leading-relaxed text-slate-600 shadow-lg sm:right-8">
             {popover === "bell"
               ? "Nessuna nuova notifica."
               : "AEQUAN è un simulatore didattico: non è un dispositivo medico e la valutazione riguarda la tecnica di esecuzione, non la diagnosi."}
@@ -81,7 +95,7 @@ export function DashboardShell({
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-[240px] shrink-0 border-r border-[#e3e9f1] bg-white px-4 py-6 lg:block">
+        <aside className="hidden w-[248px] shrink-0 border-r border-[#e7eaef] bg-white px-3 py-6 lg:block">
           <NavList active={active} onNavigate={onNavigate} />
         </aside>
         <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
@@ -91,12 +105,12 @@ export function DashboardShell({
         <button
           type="button"
           aria-label="Chiudi menu"
-          className="fixed inset-0 top-[72px] z-40 bg-[#14233b]/25 lg:hidden"
+          className="fixed inset-0 top-[72px] z-40 bg-[#1f2b3b]/25 lg:hidden"
           onClick={() => setMenu(false)}
         />
       ) : null}
       <aside
-        className={`fixed top-[72px] bottom-0 left-0 z-50 w-[260px] border-r border-[#e3e9f1] bg-white px-4 py-6 transition-transform lg:hidden ${
+        className={`fixed top-[72px] bottom-0 left-0 z-50 w-[260px] border-r border-[#e7eaef] bg-white px-4 py-6 transition-transform lg:hidden ${
           menu ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -119,18 +133,16 @@ export function Brand() {
         <svg viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true">
           <rect x="9" y="2" width="6" height="6" rx="1" fill="#2f6fb5" />
           <rect x="2" y="9" width="6" height="6" rx="1" fill="#2f6fb5" />
-          <rect x="9" y="9" width="6" height="6" rx="1" fill="#123a6b" />
+          <rect x="9" y="9" width="6" height="6" rx="1" fill="#2d4f7a" />
           <rect x="16" y="9" width="6" height="6" rx="1" fill="#2f6fb5" />
           <rect x="9" y="16" width="6" height="6" rx="1" fill="#2f6fb5" />
         </svg>
-        <span className="font-display text-[26px] font-semibold tracking-tight text-[#123a6b]">AEQUAN</span>
+        <span className="font-display text-[24px] font-semibold tracking-tight text-[#2d4f7a]">AEQUAN</span>
       </span>
-      <span className="hidden h-9 w-px bg-[#d5deea] sm:block" />
+      <span className="hidden h-9 w-px bg-[#dde2e9] sm:block" />
       <span className="hidden leading-tight sm:block">
-        <span className="block font-display text-[16px] font-semibold text-[#14233b]">
-          Imaging &amp; Clinical Simulation
-        </span>
-        <span className="block font-display text-[14px] text-slate-600 italic">Formazione in Radiologia</span>
+        <span className="block text-[14px] font-medium text-[#1f2b3b]">Formazione in Radiologia</span>
+        <span className="block text-[12px] text-slate-500">Corso di laurea TSRM</span>
       </span>
     </div>
   );
@@ -152,16 +164,17 @@ function IconButton({ label, onClick, children }: { label: string; onClick: () =
 
 function NavList({ active, onNavigate }: { active: DashView; onNavigate: (view: DashView) => void }) {
   return (
-    <nav className="flex flex-col gap-1">
-      {NAV.map((item) => (
-        <NavItem key={item.id} item={item} on={active === item.id} onClick={() => onNavigate(item.id)} />
+    <nav className="flex flex-col gap-6">
+      {NAV.map((section) => (
+        <div key={section.group}>
+          <p className="mb-1.5 px-3 text-[12px] font-medium text-slate-400">{section.group}</p>
+          <div className="flex flex-col gap-0.5">
+            {section.items.map((item) => (
+              <NavItem key={item.id} item={item} on={active === item.id} onClick={() => onNavigate(item.id)} />
+            ))}
+          </div>
+        </div>
       ))}
-      <span className="my-4 h-px bg-[#e3e9f1]" />
-      <NavItem
-        item={{ id: "settings", label: "Impostazioni", icon: Settings }}
-        on={active === "settings"}
-        onClick={() => onNavigate("settings")}
-      />
     </nav>
   );
 }
@@ -180,11 +193,11 @@ function NavItem({
     <button
       type="button"
       onClick={onClick}
-      className={`flex h-11 items-center gap-3 rounded-lg px-3 text-left text-[14px] transition ${
-        on ? "bg-[#e8f0fa] font-medium text-[#123a6b]" : "text-slate-600 hover:bg-[#f5f8fc] hover:text-[#123a6b]"
+      className={`relative flex h-10 items-center gap-3 rounded-xl px-3 text-left text-[14px] transition ${
+        on ? "bg-[#edf1f6] font-medium text-[#2d4f7a]" : "text-slate-600 hover:bg-[#f4f6f9] hover:text-[#2d4f7a]"
       }`}
     >
-      <Icon size={18} strokeWidth={1.75} />
+      <Icon size={17} strokeWidth={1.6} className={on ? "" : "text-slate-400"} />
       {item.label}
     </button>
   );

@@ -41,7 +41,7 @@ export function ReportView({
   const doseRatio = Math.min(cumulativeDap / DRL_CHEST_PA.dapDGyCm2, 1.4);
 
   return (
-    <div className="mx-auto max-w-5xl px-3 py-5 text-[#14233b] sm:px-6">
+    <div className="mx-auto max-w-5xl px-3 py-5 text-[#1f2b3b] sm:px-6">
       <div className="mb-4 flex items-center justify-between">
         <button type="button" onClick={onLibrary} className={secondaryBtn}>
           ← Dashboard
@@ -88,7 +88,7 @@ export function ReportView({
               {wrong ? "Proiezione o decubito non coerenti con il PA in ortostatismo." : ""}
             </p>
           ) : null}
-          <p className="mt-3 text-sm leading-relaxed text-[#14233b]">{evaluation.summary}</p>
+          <p className="mt-3 text-sm leading-relaxed text-[#1f2b3b]">{evaluation.summary}</p>
         </section>
 
         <section>
@@ -118,7 +118,7 @@ export function ReportView({
                     {section.lines.map((line) => (
                       <li key={line.label}>
                         <div className="flex justify-between font-mono text-[11px] tabular-nums text-slate-500">
-                          <span className="max-w-[70%] truncate text-[#14233b]">{line.label}</span>
+                          <span className="max-w-[70%] truncate text-[#1f2b3b]">{line.label}</span>
                           <span>
                             {formatNum(line.points, 1)}/{formatNum(line.max, 1)}
                           </span>
@@ -221,7 +221,7 @@ function Meta({ k, v }: { k: string; v: string }) {
 function FindingRow({ finding }: { finding: Finding }) {
   const color = finding.level === "ok" ? "#22C55E" : finding.level === "warn" ? "#F39C12" : "#EF4444";
   return (
-    <li className="flex gap-2 text-xs leading-snug text-[#14233b]">
+    <li className="flex gap-2 text-xs leading-snug text-[#1f2b3b]">
       <span className="mt-1 h-1.5 w-1.5 shrink-0" style={{ background: color }} />
       {finding.text}
     </li>

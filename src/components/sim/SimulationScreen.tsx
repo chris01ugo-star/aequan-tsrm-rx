@@ -1,23 +1,20 @@
 "use client";
 
 import {
-  Bookmark,
   Check,
+  FileText,
   ChevronLeft,
   ChevronRight,
   Contrast,
   Gauge,
   Hand,
-  ImageIcon,
   Layers,
   Maximize2,
   Minus,
   Play,
   Plus,
   RotateCcw,
-  Settings2,
   SunMedium,
-  Workflow,
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
@@ -30,7 +27,6 @@ import { DEFAULT_WINDOW, DRL_CHEST_PA, paintLatentToCanvas, renderLatent, sameTe
 import type { Analysis, ClinicalCase, ExposureShot, GrayWindow, LatentImage, Technique } from "@/types/rx";
 
 const MAX_SHOTS = 3;
-const FLOW = ["Briefing", "Console", "Acquisizione", "Review", "Debriefing"];
 
 const REFERENCE: Technique = {
   projection: "PA",
@@ -98,7 +94,6 @@ export function SimulationScreen({
   const latest = shots[shots.length - 1] ?? null;
   const dirty = Boolean(latest && shot === latest && !sameTechnique(latest.technique, technique));
   const atLimit = shots.length >= MAX_SHOTS;
-  const flowIndex = shots.length ? 2 : 1;
   const reference = useMemo(() => renderLatent(REFERENCE, 7), []);
   const dap = analysis.dosimetry.dapDGyCm2;
   const ratio = dap / DRL_CHEST_PA.dapDGyCm2;
@@ -108,36 +103,28 @@ export function SimulationScreen({
       <Stepper steps={["Briefing", "Acquisizione", "Review", "Debriefing / Valutazione"]} current={1} />
 
       <section className={`${card} p-4 sm:p-6`}>
-        <header className="mb-5 flex items-start justify-between gap-3">
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="font-display text-[26px] leading-tight font-semibold text-[#14233b] sm:text-[30px]">
-                Caso 01 — {clinical.title}
-              </h1>
-              <span className="rounded-md bg-[#e8f0fa] px-2.5 py-1 text-[12px] font-medium text-[#123a6b]">Simulazione</span>
-              <span className="rounded-md bg-[#e8f0fa] px-2.5 py-1 text-[12px] font-medium text-[#123a6b]">RX</span>
-            </div>
-            <p className="mt-1 font-display text-[16px] text-slate-500 italic">{clinical.indication}</p>
+        <header className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-[13px] text-slate-500">Caso 01 · Radiologia convenzionale</p>
+            <h1 className="mt-1 font-display text-[26px] leading-tight font-semibold text-[#1f2b3b] sm:text-[30px]">{clinical.title}</h1>
+            <p className="mt-1 text-[15px] text-slate-600">{clinical.indication}</p>
           </div>
-          <button
-            type="button"
-            onClick={onBriefing}
-            title="Scheda clinica"
-            aria-label="Apri scheda clinica"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-[#123a6b]"
-          >
-            <Bookmark size={19} strokeWidth={1.75} />
+          <button type="button" onClick={onBriefing} className={`${secondaryBtn} h-10 shrink-0 self-start px-4`}>
+            <FileText size={16} strokeWidth={1.75} />
+            Richiesta clinica
           </button>
         </header>
 
-        <div className="grid items-start gap-5 xl:grid-cols-2">
-          <div ref={viewerRef} className="rounded-xl border border-[#e3e9f1] bg-white p-3 sm:p-4">
+        <NextStep shots={shots.length} dirty={dirty} atLimit={atLimit} />
+
+        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+          <div ref={viewerRef} className="rounded-2xl xl:sticky xl:top-4 border border-[#e7eaef] bg-white p-3 sm:p-4">
             <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] text-slate-600">
-              <span className="font-medium text-[#14233b]">
+              <span className="font-medium text-[#1f2b3b]">
                 {technique.projection === "LL" ? "Laterale" : technique.projection} ·{" "}
                 {technique.decubitus === "ORTOSTATISMO" ? "Ortostatismo" : "Supino"}
               </span>
-              <span className="hidden h-4 w-px bg-[#e3e9f1] sm:block" />
+              <span className="hidden h-4 w-px bg-[#e7eaef] sm:block" />
               <span>{shot ? `Scatto ${shot.index}/${MAX_SHOTS}` : "Pre-esposizione"}</span>
               <div className="ml-auto flex items-center gap-0.5">
                 <Tool label="Finestra/livello" active={tool === "wl"} onClick={() => onView({ tool: "wl" })}>
@@ -163,7 +150,7 @@ export function SimulationScreen({
                 </Tool>
               </div>
             </div>
-            <div className="overflow-hidden rounded-lg">
+            <div className="overflow-hidden rounded-xl">
               <ViewerPanel
                 clean
                 clinical={clinical}
@@ -197,7 +184,7 @@ export function SimulationScreen({
                       onClick={() => onSelectShot(index)}
                       aria-label={`Scatto ${index + 1}`}
                       className={`h-14 w-16 overflow-hidden rounded-md border-2 bg-black sm:w-20 ${
-                        index === selectedIndex ? "border-[#123a6b]" : "border-transparent hover:border-[#9fb4cf]"
+                        index === selectedIndex ? "border-[#2d4f7a]" : "border-transparent hover:border-[#9fb4cf]"
                       }`}
                     >
                       <LatentThumb latent={item.latent} />
@@ -205,7 +192,7 @@ export function SimulationScreen({
                   ) : (
                     <span
                       key={index}
-                      className="grid h-14 w-16 place-items-center rounded-md border border-dashed border-[#d5deea] text-[11px] text-slate-400 sm:w-20"
+                      className="grid h-14 w-16 place-items-center rounded-md border border-dashed border-[#dde2e9] text-[11px] text-slate-400 sm:w-20"
                     >
                       {index + 1}
                     </span>
@@ -218,145 +205,105 @@ export function SimulationScreen({
             </div>
           </div>
 
-          <div className="grid gap-5">
-            <Panel
-              icon={<Settings2 size={18} strokeWidth={1.75} />}
-              title="Parametri di acquisizione"
-              action={
-                <button type="button" onClick={onResetTechnique} className="text-[13px] font-medium text-[#2f6fb5] hover:text-[#123a6b]">
-                  Ripristina
-                </button>
-              }
-            >
-              <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-                <Row label="Proiezione">
-                  <Select
-                    value={technique.projection}
-                    options={[["PA", "PA"], ["AP", "AP"], ["LL", "Laterale"]]}
-                    onChange={(projection) => onTechnique({ projection })}
-                  />
-                </Row>
-                <Row label="Decubito">
-                  <Select
-                    value={technique.decubitus}
-                    options={[["ORTOSTATISMO", "Ortostatismo"], ["SUPINO", "Supino"]]}
-                    onChange={(decubitus) => onTechnique({ decubitus })}
-                  />
-                </Row>
-                <Row label="Respiro">
-                  <Select
-                    value={technique.respiration}
-                    options={[["INSP", "Inspirio"], ["ESP", "Espirio"], ["LIBERO", "Libero"]]}
-                    onChange={(respiration) => onTechnique({ respiration })}
-                  />
-                </Row>
-                <Row label="Tensione (kV)">
-                  <Num value={technique.kvp} min={50} max={140} step={2} digits={0} onChange={(kvp) => onTechnique({ kvp })} />
-                </Row>
-                <Row label="Carico (mAs)">
-                  <Num value={technique.mas} min={0.5} max={40} step={0.5} digits={1} onChange={(mas) => onTechnique({ mas })} />
-                </Row>
-                <Row label="DFF (cm)">
-                  <Num value={technique.dff} min={100} max={200} step={10} digits={0} onChange={(dff) => onTechnique({ dff })} />
-                </Row>
-                <Row label="Macchia focale">
-                  <Select
-                    value={technique.focal}
-                    options={[["FINE", "Fine 0,6"], ["GROSSA", "Grossa 1,2"]]}
-                    onChange={(focal) => onTechnique({ focal })}
-                  />
-                </Row>
-                <Row label="Griglia">
-                  <Select
-                    value={technique.grid ? "IN" : "OUT"}
-                    options={[["IN", "Inserita 12:1"], ["OUT", "Rimossa"]]}
-                    onChange={(value) => onTechnique({ grid: value === "IN" })}
-                  />
-                </Row>
-                <Row label="Coll. largh. (cm)">
-                  <Num value={technique.collW} min={20} max={43} step={1} digits={0} onChange={(collW) => onTechnique({ collW })} />
-                </Row>
-                <Row label="Coll. alt. (cm)">
-                  <Num value={technique.collH} min={20} max={43} step={1} digits={0} onChange={(collH) => onTechnique({ collH })} />
-                </Row>
-              </div>
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-[#e3e9f1] pt-3 text-[13px]">
-                <span className="flex items-center gap-2 text-slate-600">
-                  <Gauge size={15} />
-                  DAP stimato <strong className="font-semibold text-[#14233b] tabular-nums">{formatNum(dap, 2)} dGy·cm²</strong>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-[15px] font-semibold text-[#1f2b3b]">Impostazioni di acquisizione</h2>
+              <button type="button" onClick={onResetTechnique} className="text-[13px] text-slate-500 underline-offset-4 hover:text-[#2d4f7a] hover:underline">
+                Ripristina valori iniziali
+              </button>
+            </div>
+
+            <Panel step={1} title="Paziente" hint="Come si presenta il paziente all’esposizione">
+              <Row label="Proiezione">
+                <Select
+                  value={technique.projection}
+                  options={[["PA", "PA"], ["AP", "AP"], ["LL", "Laterale"]]}
+                  onChange={(projection) => onTechnique({ projection })}
+                />
+              </Row>
+              <Row label="Decubito">
+                <Select
+                  value={technique.decubitus}
+                  options={[["ORTOSTATISMO", "Ortostatismo"], ["SUPINO", "Supino"]]}
+                  onChange={(decubitus) => onTechnique({ decubitus })}
+                />
+              </Row>
+              <Row label="Respiro">
+                <Select
+                  value={technique.respiration}
+                  options={[["INSP", "Inspirio"], ["ESP", "Espirio"], ["LIBERO", "Libero"]]}
+                  onChange={(respiration) => onTechnique({ respiration })}
+                />
+              </Row>
+            </Panel>
+
+            <Panel step={2} title="Esposizione" hint="Qualità e quantità del fascio">
+              <Row label="Tensione" unit="kV">
+                <Num value={technique.kvp} min={50} max={140} step={2} digits={0} onChange={(kvp) => onTechnique({ kvp })} />
+              </Row>
+              <Row label="Carico" unit="mAs">
+                <Num value={technique.mas} min={0.5} max={40} step={0.5} digits={1} onChange={(mas) => onTechnique({ mas })} />
+              </Row>
+              <Row label="Macchia focale">
+                <Select
+                  value={technique.focal}
+                  options={[["FINE", "Fine 0,6"], ["GROSSA", "Grossa 1,2"]]}
+                  onChange={(focal) => onTechnique({ focal })}
+                />
+              </Row>
+              <div className="mt-1 flex items-center justify-between gap-2 rounded-xl bg-[#f6f7f9] px-3 py-2.5 text-[13px]">
+                <span className="text-slate-600">
+                  Dose stimata <strong className="font-semibold text-[#1f2b3b] tabular-nums">{formatNum(dap, 2)} dGy·cm²</strong>
                 </span>
                 <span
-                  className={`rounded-md px-2 py-0.5 text-[12px] font-medium ${
-                    ratio <= 0.75 ? "bg-emerald-50 text-emerald-700" : ratio <= 1 ? "bg-amber-50 text-amber-700" : "bg-rose-50 text-rose-700"
+                  className={`text-[12px] font-medium ${
+                    ratio <= 0.75 ? "text-emerald-700" : ratio <= 1 ? "text-amber-700" : "text-rose-700"
                   }`}
                 >
-                  {ratio <= 0.75 ? "Sotto DRL" : ratio <= 1 ? "Vicino al DRL" : "Sopra DRL"}
+                  {ratio <= 0.75 ? "Sotto il DRL" : ratio <= 1 ? "Vicino al DRL" : "Sopra il DRL"}
                 </span>
               </div>
             </Panel>
 
-            <Panel icon={<Workflow size={18} strokeWidth={1.75} />} title="Workflow del caso">
-              <ol className="flex items-start">
-                {FLOW.map((label, step) => (
-                  <li key={label} className="relative flex flex-1 flex-col items-center gap-1.5 text-center">
-                    {step > 0 ? (
-                      <span
-                        aria-hidden="true"
-                        className={`absolute top-4 right-1/2 h-px w-full ${step <= flowIndex ? "bg-[#123a6b]" : "bg-[#d5deea]"}`}
-                      />
-                    ) : null}
-                    <span
-                      className={`relative grid h-8 w-8 place-items-center rounded-full border text-[12px] font-semibold ${
-                        step < flowIndex
-                          ? "border-emerald-600 bg-emerald-600 text-white"
-                          : step === flowIndex
-                            ? "border-[#123a6b] bg-white text-[#123a6b]"
-                            : "border-[#d5deea] bg-white text-slate-400"
-                      }`}
-                    >
-                      {step < flowIndex ? <Check size={14} strokeWidth={2.5} /> : step + 1}
-                    </span>
-                    <span
-                      className={`rounded px-1.5 py-0.5 text-[11px] sm:text-[12px] ${
-                        step === flowIndex ? "bg-[#e8f0fa] font-medium text-[#123a6b]" : "text-slate-500"
-                      }`}
-                    >
-                      {label}
-                    </span>
-                  </li>
-                ))}
-              </ol>
+            <Panel step={3} title="Geometria e campo" hint="Distanza, griglia e collimazione">
+              <Row label="Distanza fuoco-detettore" unit="cm">
+                <Num value={technique.dff} min={100} max={200} step={10} digits={0} onChange={(dff) => onTechnique({ dff })} />
+              </Row>
+              <Row label="Griglia">
+                <Select
+                  value={technique.grid ? "IN" : "OUT"}
+                  options={[["IN", "Inserita 12:1"], ["OUT", "Rimossa"]]}
+                  onChange={(value) => onTechnique({ grid: value === "IN" })}
+                />
+              </Row>
+              <Row label="Campo, larghezza" unit="cm">
+                <Num value={technique.collW} min={20} max={43} step={1} digits={0} onChange={(collW) => onTechnique({ collW })} />
+              </Row>
+              <Row label="Campo, altezza" unit="cm">
+                <Num value={technique.collH} min={20} max={43} step={1} digits={0} onChange={(collH) => onTechnique({ collH })} />
+              </Row>
             </Panel>
 
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Panel icon={<Layers size={18} strokeWidth={1.75} />} title="Stato scenario">
-                <div className="flex items-center justify-between text-[13px] text-slate-600">
-                  <span>
-                    {flowIndex} di {FLOW.length} passaggi completati
-                  </span>
-                  <span className="font-medium tabular-nums">{Math.round((flowIndex / FLOW.length) * 100)}%</span>
-                </div>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#e6ecf3]">
-                  <div className="h-full rounded-full bg-[#123a6b]" style={{ width: `${(flowIndex / FLOW.length) * 100}%` }} />
-                </div>
-              </Panel>
-              <Panel icon={<ImageIcon size={18} strokeWidth={1.75} />} title="Riferimenti">
-                <div className="grid grid-cols-2 gap-3 text-center text-[12px] text-slate-600">
+            {latest ? (
+              <section className="rounded-2xl border border-[#e7eaef] p-4 sm:p-5">
+                <h3 className="text-[15px] font-semibold text-[#1f2b3b]">Confronto con il riferimento</h3>
+                <p className="mt-0.5 text-[13px] text-slate-500">L’ultimo scatto accanto a un torace PA eseguito correttamente.</p>
+                <div className="mt-3 grid grid-cols-2 gap-3 text-[12px] text-slate-600">
                   <figure>
-                    <div className="aspect-[4/3] overflow-hidden rounded-md bg-black">
-                      {latest ? <LatentThumb latent={latest.latent} /> : <Empty />}
+                    <div className="aspect-[4/3] overflow-hidden rounded-xl bg-black">
+                      <LatentThumb latent={latest.latent} />
                     </div>
-                    <figcaption className="mt-1.5">Immagine acquisita</figcaption>
+                    <figcaption className="mt-1.5">Il tuo scatto {latest.index}</figcaption>
                   </figure>
                   <figure>
-                    <div className="aspect-[4/3] overflow-hidden rounded-md bg-black">
-                      {latest ? <LatentThumb latent={reference} /> : <Empty />}
+                    <div className="aspect-[4/3] overflow-hidden rounded-xl bg-black">
+                      <LatentThumb latent={reference} />
                     </div>
-                    <figcaption className="mt-1.5">Riferimento ottimale</figcaption>
+                    <figcaption className="mt-1.5">Riferimento</figcaption>
                   </figure>
                 </div>
-              </Panel>
-            </div>
+              </section>
+            ) : null}
           </div>
         </div>
       </section>
@@ -365,13 +312,13 @@ export function SimulationScreen({
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px] text-slate-600 sm:text-[14px]">
           <span className="flex items-center gap-2">
             <Layers size={17} strokeWidth={1.75} />
-            Scatti <strong className="text-[16px] font-semibold text-[#14233b] tabular-nums">{shots.length}/{MAX_SHOTS}</strong>
+            Scatti <strong className="text-[16px] font-semibold text-[#1f2b3b] tabular-nums">{shots.length}/{MAX_SHOTS}</strong>
           </span>
-          <span className="hidden h-6 w-px bg-[#e3e9f1] sm:block" />
+          <span className="hidden h-6 w-px bg-[#e7eaef] sm:block" />
           <span className="flex items-center gap-2">
             <Gauge size={17} strokeWidth={1.75} />
             <span className="hidden sm:inline">Dose cumulativa</span><span className="sm:hidden">Dose</span>{" "}
-            <strong className="text-[16px] font-semibold text-[#14233b] tabular-nums">{formatNum(cumulativeDap, 2)} dGy·cm²</strong>
+            <strong className="text-[16px] font-semibold text-[#1f2b3b] tabular-nums">{formatNum(cumulativeDap, 2)} dGy·cm²</strong>
           </span>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:flex">
@@ -391,29 +338,50 @@ export function SimulationScreen({
   );
 }
 
-function Panel({ icon, title, action, children }: { icon: ReactNode; title: string; action?: ReactNode; children: ReactNode }) {
+function Panel({ step, title, hint, children }: { step: number; title: string; hint: string; children: ReactNode }) {
   return (
-    <section className="rounded-xl border border-[#e3e9f1] bg-white p-4 sm:p-5">
-      <header className="mb-4 flex items-center gap-2.5">
-        <span className="text-[#123a6b]">{icon}</span>
-        <h2 className="font-display text-[17px] font-semibold text-[#14233b]">{title}</h2>
-        {action ? <span className="ml-auto">{action}</span> : null}
+    <section className="rounded-2xl border border-[#e7eaef] bg-white p-4 sm:p-5">
+      <header className="mb-3 flex items-start gap-3">
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#edf1f6] text-[13px] font-semibold text-[#2d4f7a]">{step}</span>
+        <div>
+          <h3 className="text-[15px] font-semibold text-[#1f2b3b]">{title}</h3>
+          <p className="text-[13px] text-slate-500">{hint}</p>
+        </div>
       </header>
-      {children}
+      <div className="flex flex-col gap-2.5 sm:pl-10">{children}</div>
     </section>
   );
 }
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
+function Row({ label, unit, children }: { label: string; unit?: string; children: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="text-[13px] whitespace-nowrap text-slate-700">{label}</span>
+      <span className="min-w-0 text-[14px] text-slate-700">
+        {label}
+        {unit ? <span className="ml-1 text-slate-400">({unit})</span> : null}
+      </span>
       {children}
     </div>
   );
 }
 
-const pill = "h-9 w-[118px] shrink-0 rounded-md border border-transparent bg-[#f1f4f8] text-[14px] text-[#14233b] focus-within:border-[#9fb4cf]";
+function NextStep({ shots, dirty, atLimit }: { shots: number; dirty: boolean; atLimit: boolean }) {
+  const text = atLimit
+    ? "Hai usato tutti e tre gli scatti. Passa alla review per scegliere l’immagine da inviare."
+    : dirty
+      ? "Hai modificato i parametri dopo l’ultimo scatto: esegui un nuovo scatto per vederne l’effetto."
+      : shots
+        ? "Confronta lo scatto con il riferimento. Se risponde al quesito clinico passa alla review, altrimenti correggi i parametri."
+        : "Leggi la richiesta clinica, imposta i parametri nelle tre sezioni a destra e avvia il primo scatto.";
+  return (
+    <p className="mb-5 flex flex-col gap-1 rounded-2xl sm:flex-row sm:items-start sm:gap-3 bg-[#f3f6f9] px-4 py-3 text-[14px] leading-relaxed text-slate-700">
+      <span className="mt-0.5 shrink-0 text-[12px] font-semibold text-[#2d4f7a]">Prossimo passo</span>
+      <span>{text}</span>
+    </p>
+  );
+}
+
+const pill = "h-9 w-[132px] shrink-0 rounded-xl border border-[#e3e7ed] bg-white text-[14px] text-[#1f2b3b] focus-within:border-[#9fb4cf]";
 
 function Select<T extends string>({
   value,
@@ -453,11 +421,11 @@ function Num({
   const nudge = (direction: number) => onChange(Number(clamp(value + direction * step, min, max).toFixed(digits)));
   return (
     <span className={`${pill} flex items-center`}>
-      <button type="button" aria-label="Diminuisci" onClick={() => nudge(-1)} className="grid h-full w-8 place-items-center text-slate-500 hover:text-[#123a6b]">
+      <button type="button" aria-label="Diminuisci" onClick={() => nudge(-1)} className="grid h-full w-8 place-items-center text-slate-500 hover:text-[#2d4f7a]">
         <Minus size={14} />
       </button>
       <span className="flex-1 text-center font-medium tabular-nums">{formatNum(value, digits)}</span>
-      <button type="button" aria-label="Aumenta" onClick={() => nudge(1)} className="grid h-full w-8 place-items-center text-slate-500 hover:text-[#123a6b]">
+      <button type="button" aria-label="Aumenta" onClick={() => nudge(1)} className="grid h-full w-8 place-items-center text-slate-500 hover:text-[#2d4f7a]">
         <Plus size={14} />
       </button>
     </span>
@@ -472,7 +440,7 @@ function Tool({ label, active = false, onClick, children }: { label: string; act
       aria-label={label}
       aria-pressed={active}
       onClick={onClick}
-      className={`grid h-8 w-8 place-items-center rounded-md ${active ? "bg-[#e8f0fa] text-[#123a6b]" : "text-slate-500 hover:bg-slate-100"}`}
+      className={`grid h-8 w-8 place-items-center rounded-md ${active ? "bg-[#edf1f6] text-[#2d4f7a]" : "text-slate-500 hover:bg-slate-100"}`}
     >
       {children}
     </button>
@@ -486,15 +454,11 @@ function Arrow({ label, disabled, onClick, children }: { label: string; disabled
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#d5deea] text-slate-600 disabled:opacity-40"
+      className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#dde2e9] text-slate-600 disabled:opacity-40"
     >
       {children}
     </button>
   );
-}
-
-function Empty() {
-  return <span className="grid h-full w-full place-items-center bg-[#f1f4f8] text-[11px] text-slate-400">Dopo il primo scatto</span>;
 }
 
 function LatentThumb({ latent }: { latent: LatentImage }) {
