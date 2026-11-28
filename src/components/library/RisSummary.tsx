@@ -3,7 +3,7 @@ import type { ClinicalCase } from "@/types/rx";
 
 export function RisSummary({ clinical }: { clinical: ClinicalCase }) {
   return (
-    <div className="space-y-2 text-sm text-[#0f2744]">
+    <div className="space-y-2 text-sm text-[#14233b]">
       <p className="font-mono text-[11px] text-[#1d4f91]">{clinical.pseudoId}</p>
       <p>
         {clinical.ageYears} anni · {clinical.sex} · {clinical.weightKg} kg · {clinical.heightCm} cm

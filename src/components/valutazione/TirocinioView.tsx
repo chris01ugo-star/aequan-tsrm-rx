@@ -1,23 +1,21 @@
 "use client";
 
-import { BookOpen, Check, ChevronLeft, ChevronRight, GraduationCap } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { primaryBtn, secondaryBtn } from "@/components/ui/buttons";
+import { ArrowLeft, ArrowRight, BookOpen, CalendarCheck, Check, ClipboardCheck, GraduationCap, Maximize2, Stethoscope } from "lucide-react";
+import { useMemo, useSyncExternalStore, type ReactNode } from "react";
+import { card, primaryBtn, secondaryBtn } from "@/components/ui/buttons";
+import { formatNum } from "@/lib/number";
 
 type Question = {
   id: string;
-  section: "teoria" | "immagine";
   prompt: string;
   options: string[];
   answer: number;
-  topic: string;
+  image?: boolean;
 };
 
 const QUESTIONS: Question[] = [
   {
     id: "q1",
-    section: "teoria",
-    topic: "Indicazione",
     prompt: "Qual è la principale indicazione clinica per l’esecuzione di una TC del torace senza mezzo di contrasto?",
     options: [
       "Valutazione della dissezione aortica",
@@ -26,12 +24,11 @@ const QUESTIONS: Question[] = [
       "Caratterizzazione di masse mediastiniche",
     ],
     answer: 1,
+    image: true,
   },
   {
     id: "q2",
-    section: "immagine",
-    topic: "Interpretazione",
-    prompt: "Osserva lo schema didattico e seleziona la descrizione corretta.",
+    prompt: "Osserva l’immagine e seleziona la descrizione corretta.",
     options: [
       "Opacità a vetro smerigliato nel lobo superiore destro",
       "Nodulo solido nel lobo inferiore sinistro",
@@ -39,378 +36,597 @@ const QUESTIONS: Question[] = [
       "Versamento pleurico bilaterale",
     ],
     answer: 1,
+    image: true,
   },
   {
     id: "q3",
-    section: "teoria",
-    topic: "Proiezione",
     prompt: "Nel paziente adulto deambulante, la proiezione di riferimento del torace è:",
-    options: ["AP in clinostatismo", "PA in ortostatismo", "LL come unica incidenza", "AP lordotica di routine"],
+    options: ["AP in clinostatismo", "PA in ortostatismo", "Laterale come unica incidenza", "AP lordotica di routine"],
     answer: 1,
   },
   {
     id: "q4",
-    section: "teoria",
-    topic: "Geometria",
-    prompt: "Quale distanza fuoco-detettore è lo standard didattico del torace PA?",
+    prompt: "Quale distanza fuoco-detettore è lo standard del torace PA?",
     options: ["100 cm", "120 cm", "150 cm", "180 cm"],
     answer: 3,
   },
   {
     id: "q5",
-    section: "teoria",
-    topic: "Esposizione",
-    prompt: "L’intervallo di kVp atteso per un torace PA digitale dell’adulto è:",
-    options: ["50–70", "80–90", "110–125", "140–150"],
+    prompt: "L’intervallo di tensione atteso per un torace PA digitale dell’adulto è:",
+    options: ["50–70 kV", "80–90 kV", "110–125 kV", "140–150 kV"],
     answer: 2,
   },
   {
     id: "q6",
-    section: "teoria",
-    topic: "Respiro",
     prompt: "L’istruzione respiratoria del torace standard è:",
-    options: [
-      "Respiro libero",
-      "Apnea espiratoria",
-      "Apnea inspiratoria profonda",
-      "Respirazione rapida durante l’esposizione",
-    ],
+    options: ["Respiro libero", "Apnea espiratoria", "Apnea inspiratoria profonda", "Respirazione rapida durante l’esposizione"],
     answer: 2,
   },
   {
     id: "q7",
-    section: "teoria",
-    topic: "Griglia",
     prompt: "Sul torace PA dell’adulto la griglia antidiffusione va:",
-    options: ["Sempre rimossa", "Inserita (rapporto alto, es. 12:1)", "Usata solo sotto i 60 kVp", "Sostituita dal fuoco grosso"],
+    options: ["Sempre rimossa", "Inserita, con rapporto elevato (es. 12:1)", "Usata solo sotto i 60 kV", "Sostituita dal fuoco grosso"],
     answer: 1,
   },
   {
     id: "q8",
-    section: "teoria",
-    topic: "Fuoco",
-    prompt: "Per limitare la penombra sul parenchima polmonare si preferisce:",
-    options: ["Macchia focale fine", "Macchia focale grossa", "DFF ridotta a 100 cm", "Campo 43×43 sempre aperto"],
+    prompt: "Per limitare la penombra geometrica sul parenchima polmonare si preferisce:",
+    options: ["Macchia focale fine", "Macchia focale grossa", "Distanza fuoco-detettore di 100 cm", "Campo 43×43 sempre aperto"],
     answer: 0,
   },
   {
     id: "q9",
-    section: "teoria",
-    topic: "Decubito",
-    prompt: "Se il paziente è supino, anche con «PA» selezionato in console, il fascio reale è:",
-    options: ["Ancora un PA", "Un’incidenza laterale", "Un AP con magnificazione cardiaca", "Indipendente dal decubito"],
+    prompt: "Con il paziente supino, anche se in console è selezionato «PA», il fascio reale è:",
+    options: ["Ancora un PA", "Un’incidenza laterale", "Un AP, con ingrandimento cardiaco", "Indipendente dal decubito"],
     answer: 2,
   },
   {
     id: "q10",
-    section: "teoria",
-    topic: "Radioprotezione",
-    prompt: "Il principio ALARA, in questo simulatore, significa:",
+    prompt: "Il principio ALARA, applicato alla radiografia del torace, indica:",
     options: [
       "La dose più bassa possibile, anche se l’immagine non risponde al quesito",
       "La dose minima che risponde ancora al quesito clinico",
-      "Ripetere sempre tre scatti e tenere il migliore",
-      "Escludere la griglia per ridurre il DAP a ogni costo",
+      "Eseguire sempre tre esposizioni e conservare la migliore",
+      "Rimuovere la griglia per ridurre il DAP in ogni caso",
     ],
     answer: 1,
   },
 ];
 
-const KEY = "aequan.tsrm.quiz.v1";
-const POINTS = 4;
+const COMPETENCES = [
+  "Posizionamento del paziente",
+  "Scelta dei parametri di esposizione",
+  "Radioprotezione e principio ALARA",
+  "Valutazione della qualità dell’immagine",
+];
 
-export function TirocinioView({ onStartPractical }: { onStartPractical: () => void }) {
-  const [index, setIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number>>({});
-  const [revealed, setRevealed] = useState(false);
+const STEPS = [
+  { title: "Accesso", detail: "Codice tirocinio" },
+  { title: "Valutazione teorica", detail: "10 domande" },
+  { title: "Valutazione pratica", detail: "Casi clinici" },
+  { title: "Autovalutazione", detail: "Competenze e obiettivi" },
+  { title: "Valutazione finale", detail: "Riepilogo e invio" },
+];
 
-  useEffect(() => {
-    const raw = window.localStorage.getItem(KEY);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw) as { index: number; answers: Record<string, number> };
-      setIndex(parsed.index ?? 0);
-      setAnswers(parsed.answers ?? {});
-    } catch {
-      /* ignore broken local quiz */
-    }
-  }, []);
+type Saved = {
+  step: number;
+  index: number;
+  answers: Record<string, number>;
+  self: number[];
+  submitted: boolean;
+};
 
-  useEffect(() => {
-    window.localStorage.setItem(KEY, JSON.stringify({ index, answers }));
-  }, [index, answers]);
+const KEY = "aequan.tirocinio.v2";
+const EMPTY: Saved = { step: 1, index: 0, answers: {}, self: [0, 0, 0, 0], submitted: false };
+const listeners = new Set<() => void>();
 
-  const question = QUESTIONS[index];
-  const answered = Object.keys(answers).length;
-  const correct = QUESTIONS.filter((item) => answers[item.id] === item.answer).length;
-  const score = correct * POINTS;
-  const max = QUESTIONS.length * POINTS;
-  const theory = QUESTIONS.filter((item) => item.section === "teoria");
-  const images = QUESTIONS.filter((item) => item.section === "immagine");
-  const theoryScore = theory.filter((item) => answers[item.id] === item.answer).length;
-  const imageScore = images.filter((item) => answers[item.id] === item.answer).length;
-  const done = answered === QUESTIONS.length;
-  const positive = score >= 24;
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
 
-  const bars = useMemo(
-    () => [
-      { label: "Conoscenze teoriche", value: theoryScore, max: theory.length },
-      { label: "Interpretazione immagini", value: imageScore, max: images.length },
-      { label: "Procedure e protocolli", value: Math.min(theoryScore, 7), max: 10 },
-      { label: "Competenze trasversali", value: Math.min(correct, 6), max: 10 },
-    ],
-    [theoryScore, imageScore, theory.length, images.length, correct],
-  );
-
-  function choose(option: number) {
-    setAnswers((current) => ({ ...current, [question.id]: option }));
-    setRevealed(true);
+function parse(raw: string): Saved {
+  if (!raw) return EMPTY;
+  try {
+    return { ...EMPTY, ...(JSON.parse(raw) as Partial<Saved>) };
+  } catch {
+    return EMPTY;
   }
+}
 
-  function go(next: number) {
-    setIndex(Math.min(QUESTIONS.length - 1, Math.max(0, next)));
-    setRevealed(false);
-  }
+export function TirocinioView({
+  practical,
+  onStartPractical,
+}: {
+  practical: { score: number; max: number } | null;
+  onStartPractical: () => void;
+}) {
+  const raw = useSyncExternalStore(subscribe, () => window.localStorage.getItem(KEY) ?? "", () => "");
+  const state = useMemo(() => parse(raw), [raw]);
+  const patch = (next: Partial<Saved>) => {
+    window.localStorage.setItem(KEY, JSON.stringify({ ...state, ...next }));
+    listeners.forEach((listener) => listener());
+  };
+  const answered = QUESTIONS.filter((item) => state.answers[item.id] !== undefined).length;
+  const theoryDone = answered === QUESTIONS.length;
+  const selfDone = state.self.every((value) => value > 0);
+  const completed = [true, theoryDone, Boolean(practical), selfDone, state.submitted];
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-4 px-3 py-4 sm:px-6 sm:py-6">
-      <ol className="flex items-center gap-2 overflow-x-auto rounded-2xl border border-white/80 bg-white px-3 py-3 shadow-sm sm:px-5">
-        <Step n="1" label="Tirocinio" state="done" />
-        <Rail />
-        <Step n="2" label="Valutazione" state="current" />
-        <Rail />
-        <Step n="3" label="Risultati" state={done ? "current" : "todo"} />
-      </ol>
+    <div className="mx-auto flex max-w-[1180px] flex-col gap-6 px-4 py-6 sm:px-8 sm:py-8">
+      <Hero />
 
-      <section className="overflow-hidden rounded-3xl border border-white bg-white shadow-[0_18px_50px_-28px_rgba(30,58,95,0.45)]">
-        <div className="grid items-center gap-4 bg-gradient-to-r from-white via-white to-sky-50 px-4 py-5 sm:grid-cols-[1fr_auto] sm:px-6">
-          <div className="flex gap-4">
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-sky-100 bg-sky-50 text-[#1e3a5f]">
-              <GraduationCap size={22} />
-            </span>
+      <div className="grid items-start gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
+        <aside className={`${card} p-5`}>
+          <div className="flex items-start gap-3 border-b border-[#e3e9f1] pb-4">
+            <CalendarCheck size={20} strokeWidth={1.75} className="mt-0.5 text-[#123a6b]" />
             <div>
-              <h1 className="font-display text-2xl font-bold tracking-tight text-[#16304f] sm:text-[28px]">
-                Valutazione del tirocinio
-              </h1>
-              <p className="mt-1 max-w-xl text-sm leading-relaxed text-slate-500">
-                Verifica le conoscenze trattate nel tirocinio e confrontale con la simulazione pratica del torace.
-              </p>
+              <p className="font-display text-[16px] font-semibold">Tirocinio in Radiologia</p>
+              <p className="text-[13px] text-slate-500">A.A. 2026/2027</p>
             </div>
           </div>
-          <ArchBanner />
-        </div>
-      </section>
+          <ol className="mt-4 flex gap-2 overflow-x-auto lg:flex-col lg:gap-1">
+            {STEPS.map((step, index) => {
+              const on = state.step === index;
+              const done = completed[index] && !on;
+              return (
+                <li key={step.title} className="shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => patch({ step: index })}
+                    className={`flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left transition ${
+                      on ? "bg-[#e8f0fa]" : "hover:bg-[#f5f8fc]"
+                    }`}
+                  >
+                    <span
+                      className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border text-[13px] font-semibold ${
+                        on
+                          ? "border-[#123a6b] bg-[#123a6b] text-white"
+                          : done
+                            ? "border-[#123a6b] bg-[#123a6b] text-white"
+                            : "border-[#c7d3e2] bg-white text-slate-500"
+                      }`}
+                    >
+                      {done ? <Check size={15} strokeWidth={2.5} /> : index + 1}
+                    </span>
+                    <span className="hidden min-w-0 sm:block">
+                      <span className={`block text-[14px] font-semibold ${on ? "text-[#123a6b]" : "text-[#14233b]"}`}>
+                        {step.title}
+                      </span>
+                      <span className="block text-[12px] text-slate-500">{step.detail}</span>
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </aside>
 
-      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="grid gap-4">
-          <article className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
-            <header className="flex flex-wrap items-start justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <span className="grid h-10 w-10 place-items-center rounded-xl bg-sky-50 text-[#1e3a5f]">
-                  <BookOpen size={18} />
-                </span>
+        <section className={`${card} p-5 sm:p-7`}>
+          {state.step === 0 ? (
+            <Section icon={<ClipboardCheck size={22} strokeWidth={1.75} />} title="Accesso" subtitle="Il codice di tirocinio è stato verificato.">
+              <div className="rounded-xl border border-[#e3e9f1] bg-[#f8fafd] p-5">
+                <dl className="grid gap-4 text-sm sm:grid-cols-3">
+                  <Field k="Codice tirocinio" v="RAD-TSRM-2026-014" />
+                  <Field k="Sede" v="Radiologia · Polo didattico" />
+                  <Field k="Tutor" v="Dott.ssa R. Conti" />
+                </dl>
+              </div>
+              <Footer onNext={() => patch({ step: 1 })} />
+            </Section>
+          ) : null}
+
+          {state.step === 1 ? (
+            <Theory
+              index={state.index}
+              answers={state.answers}
+              onAnswer={(id, option) => patch({ answers: { ...state.answers, [id]: option } })}
+              onIndex={(index) => patch({ index })}
+              onBack={() => patch({ step: 0 })}
+              onDone={() => patch({ step: 2 })}
+            />
+          ) : null}
+
+          {state.step === 2 ? (
+            <Section icon={<Stethoscope size={22} strokeWidth={1.75} />} title="Valutazione pratica" subtitle="Esegui il caso clinico in simulazione. Il punteggio viene acquisito al termine del debriefing.">
+              <div className="flex flex-col gap-4 rounded-xl border border-[#e3e9f1] p-5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="font-display text-lg font-bold">
-                    {question.section === "immagine" ? "Interpretazione dell’immagine" : "Conoscenze teoriche"}
-                  </h2>
-                  <p className="text-sm text-slate-500">
-                    {question.section === "immagine"
-                      ? "Osserva lo schema e seleziona la descrizione corretta."
-                      : "Verifica le conoscenze sui principali argomenti del tirocinio."}
+                  <p className="font-display text-[18px] font-semibold">Caso 01 — Torace PA</p>
+                  <p className="mt-0.5 text-sm text-slate-500 italic">Sospetta polmonite lobare destra</p>
+                  <p className="mt-3 text-sm">
+                    {practical ? (
+                      <>
+                        Ultimo esito:{" "}
+                        <strong className="text-[#123a6b]">
+                          {formatNum(practical.score, 1)} / {practical.max}
+                        </strong>
+                      </>
+                    ) : (
+                      <span className="text-slate-500">Non ancora svolto</span>
+                    )}
                   </p>
                 </div>
+                <button type="button" onClick={onStartPractical} className={primaryBtn}>
+                  {practical ? "Ripeti simulazione" : "Avvia simulazione"}
+                  <ArrowRight size={16} />
+                </button>
               </div>
-              <div className="min-w-[140px] text-right">
-                <p className="text-xs font-medium text-slate-500">
-                  Domanda {index + 1} di {QUESTIONS.length}
-                </p>
-                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className="h-full rounded-full bg-[#3b82f6]"
-                    style={{ width: `${((index + 1) / QUESTIONS.length) * 100}%` }}
-                  />
-                </div>
-              </div>
-            </header>
+              <Footer onBack={() => patch({ step: 1 })} onNext={() => patch({ step: 3 })} />
+            </Section>
+          ) : null}
 
-            <div className={`mt-5 grid gap-4 ${question.section === "immagine" ? "lg:grid-cols-[220px_minmax(0,1fr)]" : ""}`}>
-              {question.section === "immagine" ? <LungSchema /> : null}
-              <div>
-                <p className="text-[15px] font-semibold leading-snug text-[#16304f]">{question.prompt}</p>
-                <ul className="mt-3 space-y-2">
-                  {question.options.map((option, optionIndex) => {
-                    const selected = answers[question.id] === optionIndex;
-                    const show = revealed || answers[question.id] !== undefined;
-                    const good = show && optionIndex === question.answer;
-                    const bad = show && selected && optionIndex !== question.answer;
-                    return (
-                      <li key={option}>
-                        <button
-                          type="button"
-                          onClick={() => choose(optionIndex)}
-                          className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left text-sm transition ${
-                            good
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-                              : bad
-                                ? "border-rose-200 bg-rose-50 text-rose-900"
-                                : selected
-                                  ? "border-sky-200 bg-sky-50 text-[#1e3a5f]"
-                                  : "border-slate-200 bg-white hover:border-sky-200 hover:bg-slate-50"
-                          }`}
-                        >
-                          <span
-                            className={`grid h-4 w-4 shrink-0 place-items-center rounded-full border ${
-                              selected ? "border-[#1e3a5f]" : "border-slate-300"
+          {state.step === 3 ? (
+            <Section icon={<GraduationCap size={22} strokeWidth={1.75} />} title="Autovalutazione" subtitle="Indica il livello di autonomia raggiunto per ciascuna competenza (1 = guidato, 5 = autonomo).">
+              <ul className="divide-y divide-[#e3e9f1] rounded-xl border border-[#e3e9f1]">
+                {COMPETENCES.map((label, index) => (
+                  <li key={label} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <span className="text-[15px]">{label}</span>
+                    <span className="flex gap-1.5" role="radiogroup" aria-label={label}>
+                      {[1, 2, 3, 4, 5].map((value) => {
+                        const on = state.self[index] === value;
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            role="radio"
+                            aria-checked={on}
+                            onClick={() => patch({ self: state.self.map((item, i) => (i === index ? value : item)) })}
+                            className={`h-9 w-9 rounded-lg border text-sm font-medium ${
+                              on ? "border-[#123a6b] bg-[#123a6b] text-white" : "border-[#d5deea] bg-white text-slate-600 hover:border-[#123a6b]"
                             }`}
                           >
-                            {selected ? <span className="h-2 w-2 rounded-full bg-[#1e3a5f]" /> : null}
-                          </span>
-                          {option}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            </div>
+                            {value}
+                          </button>
+                        );
+                      })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <Footer onBack={() => patch({ step: 2 })} onNext={() => patch({ step: 4 })} />
+            </Section>
+          ) : null}
 
-            <footer className="mt-5 flex flex-wrap items-center justify-between gap-2">
-              <button type="button" onClick={() => go(index - 1)} disabled={index === 0} className={secondaryBtn}>
-                <ChevronLeft size={16} />
-                Domanda precedente
-              </button>
-              <button
-                type="button"
-                onClick={() => go(index + 1)}
-                disabled={index === QUESTIONS.length - 1}
-                className={primaryBtn}
-              >
-                Domanda successiva
-                <ChevronRight size={16} />
-              </button>
-            </footer>
-          </article>
-        </div>
-
-        <aside className="grid gap-4">
-          <article className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-[#16304f]">Avanzamento valutazione</h3>
-            <div className="mt-3 flex items-end justify-between gap-3">
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
-                <div className="h-full rounded-full bg-[#2563eb]" style={{ width: `${(answered / QUESTIONS.length) * 100}%` }} />
-              </div>
-              <span className="font-display text-2xl font-bold tabular-nums text-[#1e3a5f]">
-                {Math.round((answered / QUESTIONS.length) * 100)}%
-              </span>
-            </div>
-            <p className="mt-2 text-xs text-slate-500">
-              {answered} di {QUESTIONS.length} domande completate
-            </p>
-          </article>
-
-          <article className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold">Valutazione finale (provvisoria)</h3>
-            </div>
-            <div className="mt-3 flex items-end justify-between">
-              <p className="font-display text-4xl font-bold tracking-tight text-[#16304f] tabular-nums">
-                {score}
-                <span className="text-xl font-semibold text-slate-400"> / {max}</span>
-              </p>
-              <span
-                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                  answered === 0
-                    ? "bg-slate-100 text-slate-500"
-                    : positive
-                      ? "bg-emerald-50 text-emerald-700"
-                      : "bg-amber-50 text-amber-700"
-                }`}
-              >
-                <Check size={12} />
-                {answered === 0 ? "In corso" : positive ? "Positivo" : "Da consolidare"}
-              </span>
-            </div>
-            <p className="mt-4 text-xs font-semibold tracking-wide text-slate-400 uppercase">Dettaglio per ambito</p>
-            <ul className="mt-2 space-y-2">
-              {bars.map((bar) => (
-                <li key={bar.label} className="grid grid-cols-[1fr_auto] items-center gap-2 text-xs">
-                  <span className="text-slate-600">{bar.label}</span>
-                  <span className="tabular-nums text-slate-500">
-                    {bar.value}/{bar.max}
-                  </span>
-                  <span className="col-span-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                    <span
-                      className="block h-full rounded-full bg-[#60a5fa]"
-                      style={{ width: `${bar.max ? (bar.value / bar.max) * 100 : 0}%` }}
-                    />
-                  </span>
-                </li>
-              ))}
-            </ul>
-            <button type="button" onClick={onStartPractical} className={`${primaryBtn} mt-4 w-full`}>
-              Vai alla simulazione pratica
-            </button>
-          </article>
-        </aside>
+          {state.step === 4 ? (
+            <Final
+              answers={state.answers}
+              practical={practical}
+              self={state.self}
+              submitted={state.submitted}
+              ready={theoryDone && Boolean(practical) && selfDone}
+              onSubmit={() => patch({ submitted: true })}
+              onBack={() => patch({ step: 3 })}
+            />
+          ) : null}
+        </section>
       </div>
     </div>
   );
 }
 
-function Step({ n, label, state }: { n: string; label: string; state: "done" | "current" | "todo" }) {
+function Theory({
+  index,
+  answers,
+  onAnswer,
+  onIndex,
+  onBack,
+  onDone,
+}: {
+  index: number;
+  answers: Record<string, number>;
+  onAnswer: (id: string, option: number) => void;
+  onIndex: (index: number) => void;
+  onBack: () => void;
+  onDone: () => void;
+}) {
+  const question = QUESTIONS[index];
+  const percent = Math.round(((index + 1) / QUESTIONS.length) * 100);
+  const last = index === QUESTIONS.length - 1;
+
   return (
-    <li className="flex shrink-0 items-center gap-2 text-sm font-semibold">
-      <span
-        className={`grid h-7 w-7 place-items-center rounded-full text-xs ${
-          state === "done"
-            ? "bg-emerald-500 text-white"
-            : state === "current"
-              ? "bg-[#1e3a5f] text-white"
-              : "bg-slate-100 text-slate-400"
-        }`}
-      >
-        {state === "done" ? <Check size={14} /> : n}
-      </span>
-      <span className={state === "todo" ? "text-slate-400" : "text-[#1e3a5f]"}>{label}</span>
-    </li>
+    <div>
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-4">
+          <IconBox>
+            <BookOpen size={22} strokeWidth={1.75} />
+          </IconBox>
+          <div>
+            <h2 className="font-display text-[24px] font-semibold text-[#14233b]">Valutazione teorica</h2>
+            <p className="mt-0.5 text-sm text-slate-500">Verifica le tue conoscenze sui principali argomenti trattati durante il tirocinio.</p>
+          </div>
+        </div>
+        <div className="w-full sm:w-56">
+          <p className="text-[13px] text-slate-600">
+            Domanda {index + 1} di {QUESTIONS.length}
+          </p>
+          <div className="mt-2 flex items-center gap-3">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#e6ecf3]">
+              <div className="h-full rounded-full bg-[#123a6b] transition-all" style={{ width: `${percent}%` }} />
+            </div>
+            <span className="text-[15px] font-semibold tabular-nums">{percent}%</span>
+          </div>
+        </div>
+      </header>
+
+      <div className="mt-6 rounded-xl border border-[#e3e9f1] p-5 sm:p-6">
+        <div className={`grid gap-6 ${question.image ? "md:grid-cols-[minmax(0,1fr)_280px]" : ""}`}>
+          <fieldset>
+            <legend className="font-display text-[19px] leading-snug font-semibold text-[#14233b]">{question.prompt}</legend>
+            <div className="mt-5 space-y-3">
+              {question.options.map((option, optionIndex) => {
+                const selected = answers[question.id] === optionIndex;
+                return (
+                  <label
+                    key={option}
+                    className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-[15px] transition ${
+                      selected ? "border-[#bcd2ee] bg-[#e8f0fa]" : "border-[#dfe6ef] bg-white hover:bg-[#f8fafd]"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name={question.id}
+                      checked={selected}
+                      onChange={() => onAnswer(question.id, optionIndex)}
+                      className="h-[18px] w-[18px] accent-[#123a6b]"
+                    />
+                    {option}
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+          {question.image ? <CtImage /> : null}
+        </div>
+      </div>
+
+      <div className="mt-6 flex items-center justify-between gap-3">
+        <button type="button" className={secondaryBtn} onClick={() => (index === 0 ? onBack() : onIndex(index - 1))}>
+          <ArrowLeft size={16} />
+          Indietro
+        </button>
+        <button
+          type="button"
+          className={primaryBtn}
+          disabled={answers[question.id] === undefined}
+          onClick={() => (last ? onDone() : onIndex(index + 1))}
+        >
+          {last ? "Concludi sezione" : "Avanti"}
+          <ArrowRight size={16} />
+        </button>
+      </div>
+    </div>
   );
 }
 
-function Rail() {
-  return <span className="h-px w-8 shrink-0 bg-slate-200 sm:w-16" />;
+function Final({
+  answers,
+  practical,
+  self,
+  submitted,
+  ready,
+  onSubmit,
+  onBack,
+}: {
+  answers: Record<string, number>;
+  practical: { score: number; max: number } | null;
+  self: number[];
+  submitted: boolean;
+  ready: boolean;
+  onSubmit: () => void;
+  onBack: () => void;
+}) {
+  const correct = QUESTIONS.filter((item) => answers[item.id] === item.answer).length;
+  const theory = correct * 2;
+  const practice = practical ? Math.round((practical.score / practical.max) * 20) : 0;
+  const total = theory + practice;
+  const positive = total >= 24;
+  const selfAvg = self.filter(Boolean).length ? self.reduce((a, b) => a + b, 0) / self.filter(Boolean).length : 0;
+  const rows = [
+    { label: "Conoscenze teoriche", value: correct, max: 10 },
+    { label: "Interpretazione immagini", value: QUESTIONS.filter((q) => q.image && answers[q.id] === q.answer).length * 5, max: 10 },
+    { label: "Procedure e protocolli", value: practical ? Math.round((practical.score / practical.max) * 10) : 0, max: 10 },
+    { label: "Competenze trasversali", value: Math.round(selfAvg * 2), max: 10 },
+  ];
+
+  return (
+    <Section icon={<ClipboardCheck size={22} strokeWidth={1.75} />} title="Valutazione finale" subtitle="Riepilogo delle sezioni. L’invio consolida la valutazione su questo dispositivo.">
+      <div className="grid gap-5 md:grid-cols-[240px_minmax(0,1fr)]">
+        <div className="rounded-xl border border-[#e3e9f1] bg-[#f8fafd] p-5">
+          <p className="text-[13px] text-slate-500">Punteggio complessivo</p>
+          <p className="mt-1 font-display text-[44px] leading-none font-semibold tabular-nums">
+            {total}
+            <span className="text-[22px] text-slate-400"> / 40</span>
+          </p>
+          <p
+            className={`mt-4 inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium ${
+              !ready
+                ? "border-slate-200 bg-white text-slate-500"
+                : positive
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-amber-200 bg-amber-50 text-amber-700"
+            }`}
+          >
+            {ready && positive ? <Check size={15} /> : null}
+            {!ready ? "Sezioni incomplete" : positive ? "Positivo" : "Da consolidare"}
+          </p>
+        </div>
+        <div>
+          <p className="text-[14px] font-semibold">Dettaglio per ambito</p>
+          <ul className="mt-3 space-y-4">
+            {rows.map((row) => (
+              <li key={row.label} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1.5 text-sm">
+                <span>{row.label}</span>
+                <span className="font-medium tabular-nums">
+                  {row.value} / {row.max}
+                </span>
+                <span className="col-span-2 h-2 overflow-hidden rounded-full bg-[#e6ecf3]">
+                  <span className="block h-full rounded-full bg-[#123a6b]" style={{ width: `${(row.value / row.max) * 100}%` }} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      {submitted ? (
+        <p className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          Valutazione inviata. Il riepilogo resta consultabile in questa sezione.
+        </p>
+      ) : null}
+      <div className="mt-6 flex items-center justify-between gap-3">
+        <button type="button" className={secondaryBtn} onClick={onBack}>
+          <ArrowLeft size={16} />
+          Indietro
+        </button>
+        <button type="button" className={primaryBtn} disabled={!ready || submitted} onClick={onSubmit}>
+          {submitted ? "Inviata" : "Invia valutazione"}
+          {submitted ? <Check size={16} /> : <ArrowRight size={16} />}
+        </button>
+      </div>
+    </Section>
+  );
 }
 
-function ArchBanner() {
+function Section({
+  icon,
+  title,
+  subtitle,
+  children,
+}: {
+  icon: ReactNode;
+  title: string;
+  subtitle: string;
+  children: ReactNode;
+}) {
   return (
-    <svg viewBox="0 0 280 92" className="hidden h-[92px] w-[280px] sm:block" aria-hidden="true">
-      <rect width="280" height="92" rx="16" fill="#eaf2fb" />
-      {[0, 1, 2, 3, 4].map((column) => (
-        <g key={column} transform={`translate(${18 + column * 52} 18)`}>
-          <path d="M8 58 V28 Q26 8 44 28 V58" fill="none" stroke="#9db7d6" strokeWidth="3" />
-          <rect x="6" y="56" width="40" height="8" fill="#c5d5ea" />
-        </g>
+    <div>
+      <header className="mb-6 flex items-start gap-4">
+        <IconBox>{icon}</IconBox>
+        <div>
+          <h2 className="font-display text-[24px] font-semibold text-[#14233b]">{title}</h2>
+          <p className="mt-0.5 max-w-2xl text-sm text-slate-500">{subtitle}</p>
+        </div>
+      </header>
+      {children}
+    </div>
+  );
+}
+
+function Footer({ onBack, onNext }: { onBack?: () => void; onNext: () => void }) {
+  return (
+    <div className="mt-6 flex items-center justify-between gap-3">
+      {onBack ? (
+        <button type="button" className={secondaryBtn} onClick={onBack}>
+          <ArrowLeft size={16} />
+          Indietro
+        </button>
+      ) : (
+        <span />
+      )}
+      <button type="button" className={primaryBtn} onClick={onNext}>
+        Avanti
+        <ArrowRight size={16} />
+      </button>
+    </div>
+  );
+}
+
+function Field({ k, v }: { k: string; v: string }) {
+  return (
+    <div>
+      <dt className="text-[12px] text-slate-500">{k}</dt>
+      <dd className="mt-0.5 font-medium">{v}</dd>
+    </div>
+  );
+}
+
+function IconBox({ children }: { children: ReactNode }) {
+  return (
+    <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#e8f0fa] text-[#123a6b]">{children}</span>
+  );
+}
+
+function Hero() {
+  return (
+    <section className="relative overflow-hidden rounded-2xl border border-[#e3e9f1] bg-gradient-to-r from-[#f7f9fc] via-[#eef3f9] to-[#dfe8f3]">
+      <Colonnade />
+      <div className="relative flex items-center gap-5 px-6 py-8 sm:px-10 sm:py-10">
+        <span className="hidden h-16 w-16 shrink-0 place-items-center rounded-xl bg-white/80 text-[#123a6b] shadow-sm sm:grid">
+          <GraduationCap size={30} strokeWidth={1.5} />
+        </span>
+        <span className="hidden h-16 w-[2px] bg-[#c9a35c] sm:block" />
+        <div className="max-w-xl">
+          <h1 className="font-display text-[30px] leading-tight font-semibold text-[#14233b] sm:text-[36px]">
+            Valutazione del tirocinio
+          </h1>
+          <p className="mt-2 text-[15px] leading-relaxed text-slate-600">
+            Completa tutte le sezioni per la valutazione finale delle competenze acquisite durante il tirocinio in Radiologia.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Colonnade() {
+  return (
+    <svg
+      viewBox="0 0 520 200"
+      preserveAspectRatio="xMaxYMid slice"
+      className="pointer-events-none absolute inset-y-0 right-0 h-full w-[62%] opacity-70 [mask-image:linear-gradient(to_right,transparent,black_35%)]"
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id="stone" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0" stopColor="#f4f7fb" />
+          <stop offset="1" stopColor="#c6d4e6" />
+        </linearGradient>
+      </defs>
+      <rect x="0" y="0" width="520" height="200" fill="#dbe5f1" />
+      <rect x="0" y="14" width="520" height="14" fill="url(#stone)" />
+      {Array.from({ length: 7 }, (_, i) => {
+        const x = 20 + i * 74;
+        return (
+          <g key={i}>
+            <path d={`M${x + 14} 200 V82 A30 30 0 0 1 ${x + 74} 82 V200`} fill="#9fb4cf" opacity="0.55" />
+            <rect x={x} y="40" width="16" height="160" fill="url(#stone)" />
+            <rect x={x - 3} y="36" width="22" height="8" fill="#eef3f9" />
+          </g>
+        );
+      })}
+      <rect x="0" y="184" width="520" height="16" fill="#e9eff7" />
+      {Array.from({ length: 26 }, (_, i) => (
+        <rect key={i} x={8 + i * 20} y="168" width="6" height="16" rx="3" fill="#cfdbea" />
       ))}
+      <rect x="0" y="164" width="520" height="5" fill="#eef3f9" />
     </svg>
   );
 }
 
-function LungSchema() {
+function CtImage() {
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-black">
-      <svg viewBox="0 0 220 180" className="h-auto w-full" role="img" aria-label="Schema didattico del torace con nodulo nel lobo inferiore sinistro">
-        <rect width="220" height="180" fill="#05070b" />
-        <ellipse cx="78" cy="96" rx="48" ry="62" fill="#1c2430" stroke="#4b5563" />
-        <ellipse cx="142" cy="96" rx="48" ry="62" fill="#1c2430" stroke="#4b5563" />
-        <path d="M110 40 L110 150" stroke="#374151" />
-        <circle cx="156" cy="128" r="11" fill="#d1d5db" />
-        <circle cx="156" cy="128" r="18" fill="none" stroke="#38bdf8" strokeWidth="2" />
-        <text x="12" y="18" fill="#94a3b8" fontSize="9" fontFamily="ui-sans-serif">
-          SCHEMA DIDATTICO
-        </text>
-        <text x="12" y="168" fill="#94a3b8" fontSize="9" fontFamily="ui-sans-serif">
-          L · nodulo LLS
-        </text>
+    <figure className="relative self-start overflow-hidden rounded-xl bg-black">
+      <svg viewBox="0 0 280 210" className="h-auto w-full" role="img" aria-label="TC del torace, finestra polmonare, con nodulo nel lobo inferiore sinistro">
+        <rect width="280" height="210" fill="#000" />
+        <ellipse cx="140" cy="112" rx="128" ry="88" fill="#6b6b6b" />
+        <ellipse cx="140" cy="112" rx="118" ry="80" fill="#8a8a8a" />
+        <path d="M44 112 C44 62 78 40 112 46 C126 50 128 70 126 96 C124 130 126 160 112 170 C80 182 44 160 44 112 Z" fill="#0b0b0b" />
+        <path d="M236 112 C236 62 202 40 168 46 C154 50 152 70 154 96 C156 130 154 160 168 170 C200 182 236 160 236 112 Z" fill="#0b0b0b" />
+        <g stroke="#6f6f6f" strokeWidth="1.2" fill="none" opacity="0.9">
+          <path d="M112 100 L84 80 M100 92 L80 104 M108 120 L76 132 M96 126 L84 150" />
+          <path d="M168 100 L196 80 M180 92 L202 106 M172 120 L204 134 M184 128 L196 150" />
+        </g>
+        <ellipse cx="140" cy="104" rx="26" ry="30" fill="#bdbdbd" />
+        <circle cx="140" cy="62" r="9" fill="#d6d6d6" />
+        <circle cx="152" cy="132" r="9" fill="#cfcfcf" />
+        <rect x="128" y="160" width="24" height="22" rx="6" fill="#efefef" />
+        <circle cx="194" cy="140" r="11" fill="#e4e4e4" />
+        <circle cx="194" cy="140" r="11" fill="none" stroke="#f5f5f5" strokeWidth="1" strokeDasharray="2 2" />
       </svg>
-    </div>
+      <span className="absolute right-3 bottom-3 grid h-8 w-8 place-items-center rounded-md bg-black/60 text-white">
+        <Maximize2 size={15} />
+      </span>
+    </figure>
   );
 }

@@ -31,12 +31,12 @@ export function BriefingDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="briefing-title"
-        className="max-h-[calc(100dvh-24px)] w-full max-w-2xl overflow-y-auto rounded-3xl border border-slate-200 bg-white text-[#0f2744] rx-scroll"
+        className="max-h-[calc(100dvh-24px)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-slate-200 bg-white text-[#14233b] rx-scroll"
       >
         <header className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div>
             <p className="font-mono text-[10px] tracking-[0.16em] text-[#1d4f91]">RICHIESTA RIS · {clinical.id}</p>
-            <h2 id="briefing-title" className="font-display text-lg font-bold tracking-tight">
+            <h2 id="briefing-title" className="font-display text-lg font-semibold">
               Caso 01 — Torace, sospetta polmonite lobare dx
             </h2>
           </div>

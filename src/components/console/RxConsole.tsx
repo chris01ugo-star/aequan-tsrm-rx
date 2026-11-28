@@ -284,6 +284,10 @@ export function RxConsole() {
     <>
       {dash === "dashboard" ? (
         <TirocinioView
+          practical={(() => {
+            const last = sessions.find((item) => item.caseId === clinical.id);
+            return last ? { score: last.score, max: last.max } : null;
+          })()}
           onStartPractical={() => {
             resetExam();
             setProgressCase(clinical.id);

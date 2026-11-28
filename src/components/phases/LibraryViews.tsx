@@ -6,13 +6,13 @@ import { primaryBtn } from "@/components/ui/buttons";
 
 export function ArchiveView({ sessions }: { sessions: SavedSession[] }) {
   return (
-    <div className="mx-auto max-w-6xl px-3 py-5 sm:px-6 sm:py-6">
-      <h2 className="font-display text-2xl font-bold tracking-tight text-[#16304f]">Archivio sessioni</h2>
+    <div className="mx-auto max-w-[1180px] px-4 py-6 sm:px-8 sm:py-8">
+      <h2 className="font-display text-[30px] font-semibold text-[#14233b]">Archivio sessioni</h2>
       <p className="mt-1 max-w-2xl text-sm text-slate-500">
         Le simulazioni concluse restano su questo browser, senza nomi reali. Ogni scheda riporta voto, scatti, dose e orario.
       </p>
       {sessions.length === 0 ? (
-        <p className="mt-6 rounded-3xl border border-dashed border-slate-200 bg-white px-4 py-8 text-sm text-slate-500">
+        <p className="mt-6 rounded-2xl border border-dashed border-slate-200 bg-white px-4 py-8 text-sm text-slate-500">
           Nessuna simulazione conclusa. Completa review e debriefing per salvarla in locale.
         </p>
       ) : (
@@ -22,8 +22,8 @@ export function ArchiveView({ sessions }: { sessions: SavedSession[] }) {
               key={session.id}
               className="grid gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm sm:grid-cols-[1.4fr_0.6fr_0.6fr_0.9fr_0.8fr] sm:items-center"
             >
-              <span className="font-semibold text-[#16304f]">{session.caseTitle}</span>
-              <span className="tabular-nums text-[#1e3a5f]">
+              <span className="font-semibold text-[#14233b]">{session.caseTitle}</span>
+              <span className="tabular-nums text-[#123a6b]">
                 {formatNum(session.score, 1)} / {session.max}
               </span>
               <span className="tabular-nums text-slate-600">{session.shots} scatti</span>
@@ -63,16 +63,16 @@ const BANK = [
 
 export function CaseBankView() {
   return (
-    <div className="mx-auto max-w-6xl px-3 py-5 sm:px-6 sm:py-6">
-      <h2 className="font-display text-2xl font-bold tracking-tight text-[#16304f]">Banca dati casi</h2>
+    <div className="mx-auto max-w-[1180px] px-4 py-6 sm:px-8 sm:py-8">
+      <h2 className="font-display text-[30px] font-semibold text-[#14233b]">Banca dati casi</h2>
       <p className="mt-1 max-w-2xl text-sm text-slate-500">
         Pilota di radiologia tradizionale. In questa versione si esegue il torace PA.
       </p>
       <ul className="mt-4 grid gap-3 md:grid-cols-3">
         {BANK.map((item) => (
-          <li key={item.id} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+          <li key={item.id} className="rounded-2xl border border-[#e3e9f1] bg-white p-5 shadow-sm">
             <p className="text-[11px] font-semibold tracking-[0.14em] text-[#1d4f91] uppercase">{item.id}</p>
-            <h3 className="mt-1 font-display text-lg font-bold text-[#16304f]">{item.title}</h3>
+            <h3 className="mt-1 font-display text-lg font-bold text-[#14233b]">{item.title}</h3>
             <p className="mt-2 text-sm leading-relaxed text-slate-500">{item.detail}</p>
             <p className={`mt-3 text-xs font-semibold ${item.ready ? "text-emerald-600" : "text-amber-600"}`}>
               {item.status}
@@ -95,8 +95,8 @@ export function ReportHub({
   const average =
     sessions.length === 0 ? 0 : sessions.reduce((sum, item) => sum + item.score, 0) / sessions.length;
   return (
-    <div className="mx-auto max-w-6xl px-3 py-5 sm:px-6 sm:py-6">
-      <h2 className="font-display text-2xl font-bold tracking-tight text-[#16304f]">Report</h2>
+    <div className="mx-auto max-w-[1180px] px-4 py-6 sm:px-8 sm:py-8">
+      <h2 className="font-display text-[30px] font-semibold text-[#14233b]">Report</h2>
       <p className="mt-1 max-w-2xl text-sm text-slate-500">
         Sintesi delle sessioni salvate su questo browser. Il referto completo compare al termine della review.
       </p>
@@ -106,10 +106,10 @@ export function ReportHub({
         <Stat label="Ultimo DAP" value={latest ? `${formatNum(latest.cumulativeDap, 2)}` : "—"} />
       </div>
       {latest ? (
-        <article className="mt-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <article className="mt-4 rounded-2xl border border-[#e3e9f1] bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">Ultima sessione</p>
           <h3 className="mt-1 font-display text-xl font-bold">{latest.caseTitle}</h3>
-          <p className="mt-2 font-display text-4xl font-bold tabular-nums text-[#16304f]">
+          <p className="mt-2 font-display text-4xl font-bold tabular-nums text-[#14233b]">
             {formatNum(latest.score, 1)}
             <span className="text-xl text-slate-400"> / {latest.max}</span>
           </p>
@@ -118,7 +118,7 @@ export function ReportHub({
           </p>
         </article>
       ) : (
-        <article className="mt-4 rounded-3xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-500">
+        <article className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-500">
           Nessun report ancora. Avvia lo scenario del torace e consegna la review.
           <button type="button" onClick={onOpenPractical} className={`${primaryBtn} mt-4`}>
             Apri simulazione
@@ -131,12 +131,12 @@ export function ReportHub({
 
 export function SettingsView() {
   return (
-    <div className="mx-auto max-w-3xl px-3 py-5 sm:px-6 sm:py-6">
-      <h2 className="font-display text-2xl font-bold tracking-tight text-[#16304f]">Impostazioni</h2>
+    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-8 sm:py-8">
+      <h2 className="font-display text-[30px] font-semibold text-[#14233b]">Impostazioni</h2>
       <p className="mt-1 text-sm leading-relaxed text-slate-500">
         AEQUAN Imaging & Clinical Simulation è un ambiente universitario. I dati di sessione e del quiz restano nel browser, senza account clinico.
       </p>
-      <article className="mt-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <article className="mt-4 rounded-2xl border border-[#e3e9f1] bg-white p-5 shadow-sm">
         <h3 className="font-semibold">Dati locali</h3>
         <p className="mt-1 text-sm text-slate-500">Cancella archivio sessioni e avanzamento del caso in corso.</p>
         <button
@@ -145,7 +145,7 @@ export function SettingsView() {
           onClick={() => {
             saveSessions([]);
             setProgressCase("");
-            window.localStorage.removeItem("aequan.tsrm.quiz.v1");
+            window.localStorage.removeItem("aequan.tirocinio.v2");
           }}
         >
           Azzera dati di questo browser
@@ -157,9 +157,9 @@ export function SettingsView() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <article className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+    <article className="rounded-2xl border border-[#e3e9f1] bg-white p-5 shadow-sm">
       <p className="text-xs font-medium text-slate-500">{label}</p>
-      <p className="mt-1 font-display text-2xl font-bold tabular-nums text-[#16304f]">{value}</p>
+      <p className="mt-1 font-display text-2xl font-bold tabular-nums text-[#14233b]">{value}</p>
     </article>
   );
 }

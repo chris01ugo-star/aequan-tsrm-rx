@@ -41,7 +41,7 @@ export function ReportView({
   const doseRatio = Math.min(cumulativeDap / DRL_CHEST_PA.dapDGyCm2, 1.4);
 
   return (
-    <div className="mx-auto max-w-5xl px-3 py-5 text-[#0f2744] sm:px-6">
+    <div className="mx-auto max-w-5xl px-3 py-5 text-[#14233b] sm:px-6">
       <div className="mb-4 flex items-center justify-between">
         <button type="button" onClick={onLibrary} className={secondaryBtn}>
           ← Dashboard
@@ -49,12 +49,12 @@ export function ReportView({
         <Image src="/aequan-logo-horizontal.png" alt="Aequan" width={140} height={28} className="h-7 w-auto" />
       </div>
 
-      <article className="mb-10 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <article className="mb-10 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <header className="border-b-4 border-[#3b82f6] px-4 py-5 sm:px-6">
           <p className="font-mono text-[10px] tracking-[0.24em] text-[#1d4f91] uppercase">
             TSRM RX · Pre-valutazione
           </p>
-          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight">Referto di valutazione tecnica</h1>
+          <h1 className="mt-1 font-display text-2xl font-semibold">Referto di valutazione tecnica</h1>
           <dl className="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
             <Meta k="Caso" v="Caso 01 — Torace PA" />
             <Meta k="Scala" v="/30" />
@@ -88,7 +88,7 @@ export function ReportView({
               {wrong ? "Proiezione o decubito non coerenti con il PA in ortostatismo." : ""}
             </p>
           ) : null}
-          <p className="mt-3 text-sm leading-relaxed text-[#0f2744]">{evaluation.summary}</p>
+          <p className="mt-3 text-sm leading-relaxed text-[#14233b]">{evaluation.summary}</p>
         </section>
 
         <section>
@@ -118,7 +118,7 @@ export function ReportView({
                     {section.lines.map((line) => (
                       <li key={line.label}>
                         <div className="flex justify-between font-mono text-[11px] tabular-nums text-slate-500">
-                          <span className="max-w-[70%] truncate text-[#0f2744]">{line.label}</span>
+                          <span className="max-w-[70%] truncate text-[#14233b]">{line.label}</span>
                           <span>
                             {formatNum(line.points, 1)}/{formatNum(line.max, 1)}
                           </span>
@@ -161,7 +161,7 @@ export function ReportView({
         </section>
 
         <section className="border-b border-slate-100 px-4 py-4 sm:px-6">
-          <h2 className="font-display text-base font-bold">Delta tecnico</h2>
+          <h2 className="font-display text-lg font-semibold">Delta tecnico</h2>
           <p className="mt-1 text-xs text-slate-500">Tuo settaggio vs standard di riferimento</p>
           <div className="mt-3 grid grid-cols-[1fr_1fr_1.2fr] text-[11px] text-slate-400">
             <span>Parametro</span><span>Eseguito</span><span>Riferimento</span>
@@ -179,7 +179,7 @@ export function ReportView({
         </section>
 
         <section className="border-b border-slate-100 px-4 py-4 sm:px-6">
-          <h2 className="font-display text-base font-bold">Coaching e debriefing</h2>
+          <h2 className="font-display text-lg font-semibold">Coaching e debriefing</h2>
           <div className="mt-3 grid gap-4 md:grid-cols-2">
             <div>
               <h3 className="text-xs font-semibold tracking-[0.12em] text-[#22C55E] uppercase">Punti di forza</h3>
@@ -221,7 +221,7 @@ function Meta({ k, v }: { k: string; v: string }) {
 function FindingRow({ finding }: { finding: Finding }) {
   const color = finding.level === "ok" ? "#22C55E" : finding.level === "warn" ? "#F39C12" : "#EF4444";
   return (
-    <li className="flex gap-2 text-xs leading-snug text-[#0f2744]">
+    <li className="flex gap-2 text-xs leading-snug text-[#14233b]">
       <span className="mt-1 h-1.5 w-1.5 shrink-0" style={{ background: color }} />
       {finding.text}
     </li>

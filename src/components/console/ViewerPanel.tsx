@@ -39,6 +39,7 @@ type ViewerPanelProps = {
   onGray: (patch: Partial<GrayWindow>) => void;
   onView: (patch: { zoom?: number; panX?: number; panY?: number; overlay?: boolean; tool?: ViewerTool }) => void;
   onReset: () => void;
+  clean?: boolean;
 };
 
 const RESPIRATION_LABEL = {
@@ -66,6 +67,7 @@ export function ViewerPanel({
   onGray,
   onView,
   onReset,
+  clean = false,
 }: ViewerPanelProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drag = useRef<{
@@ -125,12 +127,11 @@ export function ViewerPanel({
   }
 
   return (
-    <section className="flex min-h-[320px] min-w-0 flex-1 flex-col bg-white sm:min-h-[420px]">
-      <div className="relative min-h-[280px] flex-1 bg-[#071018] [container-type:size] sm:min-h-[360px]">
+    <section className="flex min-w-0 flex-1 flex-col bg-white">
+      <div className="relative h-[min(64vh,540px)] min-h-[300px] w-full bg-black">
         <div
-          className="absolute top-1/2 left-1/2"
+          className="absolute top-1/2 left-1/2 h-full max-w-full"
           style={{
-            width: `min(100cqw, calc(100cqh * ${LATENT_WIDTH} / ${LATENT_HEIGHT}))`,
             aspectRatio: `${LATENT_WIDTH} / ${LATENT_HEIGHT}`,
             transform: "translate(-50%, -50%)",
           }}
@@ -196,13 +197,28 @@ export function ViewerPanel({
           </div>
         </div>
 
-        <Corner className="top-2 left-2" lines={topLeft(clinical, shot)} />
-        <Corner className="top-2 right-2 text-right" lines={topRight(shown)} />
-        <Corner className="bottom-2 left-2" lines={bottomLeft(shown, shot)} />
-        <Corner
-          className="right-2 bottom-2 text-right"
-          lines={bottomRight(gray, zoom, dose.ei, Boolean(shot))}
-        />
+        {clean ? (
+          <>
+            <Orientation side={shown.projection === "LL" ? "SX" : "DX"} />
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap justify-center gap-x-5 gap-y-1 bg-gradient-to-t from-black/70 to-transparent px-3 pt-6 pb-2 font-sans text-[11px] text-white/85">
+              <span>kV {formatNum(shown.kvp, 0)}</span>
+              <span>mAs {formatNum(shown.mas, 1)}</span>
+              <span>DFF {formatNum(shown.dff, 0)} cm</span>
+              <span>{shown.grid ? "Griglia 12:1" : "Senza griglia"}</span>
+              <span>EI {shot ? formatNum(dose.ei, 0) : "—"}</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <Corner className="top-2 left-2" lines={topLeft(clinical, shot)} />
+            <Corner className="top-2 right-2 text-right" lines={topRight(shown)} />
+            <Corner className="bottom-2 left-2" lines={bottomLeft(shown, shot)} />
+            <Corner
+              className="right-2 bottom-2 text-right"
+              lines={bottomRight(gray, zoom, dose.ei, Boolean(shot))}
+            />
+          </>
+        )}
 
         {dirty && shot ? (
           <div className="absolute top-2 left-1/2 -translate-x-1/2 rounded-full border border-amber-300 bg-amber-50 px-2 py-1 font-mono text-[10px] tracking-[0.08em] text-amber-700">
@@ -221,7 +237,7 @@ export function ViewerPanel({
         ) : null}
       </div>
 
-      <div className="flex h-9 shrink-0 items-center gap-1.5 overflow-x-auto border-t border-line bg-panel px-2">
+      <div className={`${clean ? "hidden" : "flex"} h-9 shrink-0 items-center gap-1.5 overflow-x-auto border-t border-line bg-panel px-2`}>
         <span className="text-[9px] tracking-[0.14em] text-muted">W</span>
         <input
           className="rx-range w-16"
@@ -405,6 +421,14 @@ function Corner({ className, lines }: { className: string; lines: string[] }) {
   );
 }
 
+function Orientation({ side }: { side: "DX" | "SX" }) {
+  return (
+    <div className="pointer-events-none absolute top-3 left-3 rounded bg-black/50 px-1.5 py-0.5 font-sans text-[11px] font-semibold text-white">
+      {side === "DX" ? "R" : "L"}
+    </div>
+  );
+}
+
 function ToolButton({
   children,
   onClick,
@@ -456,7 +480,7 @@ function CenteringField({
           <div className="pointer-events-none absolute inset-x-0 top-8 flex justify-center px-6">
             <div className="max-w-md rounded-xl border border-white/15 bg-black/70 px-3 py-1.5 text-center">
               <p className="font-display text-[12px] leading-snug text-white">
-            Sala pronta — Calibra posizionamento, geometria e parametri fisici prima di esporre
+            Imposta i parametri di acquisizione, poi avvia l’esposizione
           </p>
           <p className="mt-0.5 font-mono text-[10px] tracking-[0.14em] text-amber-rx">
             LUCE DI COLLIMAZIONE

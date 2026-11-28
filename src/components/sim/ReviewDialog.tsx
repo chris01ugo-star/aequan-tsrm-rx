@@ -80,10 +80,10 @@ export function ReviewDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="review-title"
-        className="flex max-h-[calc(100dvh-16px)] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white text-[#0f2744]"
+        className="flex max-h-[calc(100dvh-16px)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-[#14233b]"
       >
         <header className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-          <h2 id="review-title" className="font-display text-base font-bold">
+          <h2 id="review-title" className="font-display text-lg font-semibold">
             Review e artefatti
           </h2>
           <button type="button" onClick={onClose} className={ghostBtn}>
@@ -93,6 +93,7 @@ export function ReviewDialog({
         <div className="grid min-h-0 flex-1 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="min-h-[240px] border-b border-slate-100 lg:border-r lg:border-b-0">
             <ViewerPanel
+              clean
               clinical={clinical}
               technique={shot.technique}
               analysis={analysis}
@@ -154,7 +155,7 @@ function Choice({ on, onClick, children }: { on: boolean; onClick: () => void; c
       type="button"
       onClick={onClick}
       className={`h-10 flex-1 rounded-xl text-xs font-semibold ${
-        on ? "bg-[#1e3a5f] text-white" : "border border-slate-200 bg-white text-slate-500"
+        on ? "bg-[#123a6b] text-white" : "border border-slate-200 bg-white text-slate-500"
       }`}
     >
       {children}

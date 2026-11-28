@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Plus_Jakarta_Sans } from "next/font/google";
+import { Inter, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 
 const inter = Inter({
@@ -8,9 +8,9 @@ const inter = Inter({
   display: "swap",
 });
 
-const jakarta = Plus_Jakarta_Sans({
+const serif = Source_Serif_4({
   subsets: ["latin"],
-  variable: "--font-jakarta",
+  variable: "--font-serif",
   display: "swap",
 });
 
@@ -22,11 +22,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="it"
-      className={`${inter.variable} ${jakarta.variable} h-full antialiased`}
-    >
-      <body className="min-h-full bg-[#eef3f8] font-sans text-[#0f2744]">{children}</body>
+    <html lang="it" className={`${inter.variable} ${serif.variable} h-full antialiased`}>
+      <body className="min-h-full bg-[#f3f6fa] font-sans text-[#14233b]">{children}</body>
     </html>
   );
 }
