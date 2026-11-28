@@ -25,6 +25,9 @@ export const DEFAULT_TECHNIQUE: Technique = {
   tubeAngulationMLDeg: 0,
   gridMode: "none",
   markerSide: "none",
+  exposureMode: "manual",
+  aecChambers: { left: false, center: true, right: false },
+  aecDensityStep: 0,
 };
 
 /** Confronto mostrato solo dopo la consegna. Non va in scheda clinica. */
@@ -41,6 +44,7 @@ export const CHEST_PA_REFERENCE: { parameter: string; standard: string }[] = [
   { parameter: "Spalle", standard: "Ruotate in avanti" },
   { parameter: "Marker", standard: "DX presente" },
   { parameter: "DI", standard: "−1 … +1" },
+  { parameter: "AEC", standard: "Camere laterali DX+SX, oppure mAs manuali in banda" },
 ];
 
 export const CASES: ClinicalCase[] = [

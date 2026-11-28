@@ -80,6 +80,8 @@ export function ViewerPanel({
 
   const shown = shot?.technique ?? technique;
   const dose = shot?.dosimetry ?? analysis.dosimetry;
+  const frameW = shot?.latent.width ?? LATENT_WIDTH;
+  const frameH = shot?.latent.height ?? LATENT_HEIGHT;
   const markers = overlayMarkers(computeGeometry(shown));
 
   useEffect(() => {
@@ -132,8 +134,8 @@ export function ViewerPanel({
         <div
           className="absolute top-1/2 left-1/2"
           style={{
-            width: `min(100cqw, calc(100cqh * ${LATENT_WIDTH} / ${LATENT_HEIGHT}))`,
-            aspectRatio: `${LATENT_WIDTH} / ${LATENT_HEIGHT}`,
+            width: `min(100cqw, calc(100cqh * ${frameW} / ${frameH}))`,
+            aspectRatio: `${frameW} / ${frameH}`,
             transform: "translate(-50%, -50%)",
           }}
         >
@@ -168,7 +170,7 @@ export function ViewerPanel({
               )}
               {shot && overlay ? (
                 <svg
-                  viewBox={`0 0 ${LATENT_WIDTH} ${LATENT_HEIGHT}`}
+                  viewBox={`0 0 ${shot.latent.width} ${shot.latent.height}`}
                   className="pointer-events-none absolute inset-0 h-full w-full"
                 >
                   {markers.map((marker) => {
@@ -176,15 +178,15 @@ export function ViewerPanel({
                     return (
                       <g key={marker.id}>
                         <circle
-                          cx={marker.x * LATENT_WIDTH}
-                          cy={marker.y * LATENT_HEIGHT}
+                          cx={marker.x * shot.latent.width}
+                          cy={marker.y * shot.latent.height}
                           r="4"
                           fill="none"
                           stroke="#6BA3DE"
                         />
                         <text
-                          x={marker.x * LATENT_WIDTH + (rightSide ? -8 : 8)}
-                          y={marker.y * LATENT_HEIGHT - 8}
+                          x={marker.x * shot.latent.width + (rightSide ? -8 : 8)}
+                          y={marker.y * shot.latent.height - 8}
                           fill="#6BA3DE"
                           fontSize="13"
                           fontFamily="ui-monospace, monospace"
@@ -382,7 +384,9 @@ function gridLabel(technique: Technique): string {
 function bottomLeft(technique: Technique, shot: ExposureShot | null): string[] {
   return [
     shot ? "ACQUISIZIONE" : "PRE-ESPOSIZIONE / CENTRATURA",
-    `${formatNum(technique.kvp, 0)} kVp    ${formatNum(technique.mas, 1)} mAs`,
+    shot
+      ? `${formatNum(technique.kvp, 0)} kVp    ${formatNum(technique.mas, 1)} mAs    t ${formatNum(shot.dosimetry.exposureTimeMs, 0)} ms`
+      : `${formatNum(technique.kvp, 0)} kVp    ${formatNum(technique.mas, 1)} mAs`,
     `DFF ${formatNum(technique.dff, 0)} cm`,
     `${technique.focal === "FINE" ? "FF 0,6 mm" : "FF 1,2 mm"}   ${gridLabel(technique)}`,
     `COLL ${formatNum(technique.collW, 0)} × ${formatNum(technique.collH, 0)} cm`,

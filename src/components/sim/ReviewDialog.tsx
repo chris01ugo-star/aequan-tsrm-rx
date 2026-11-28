@@ -3,12 +3,14 @@
 import { ViewerPanel, type ViewerTool } from "@/components/console/ViewerPanel";
 import { primaryBtn, ghostBtn } from "@/components/ui/buttons";
 import { ARTIFACT_OPTIONS } from "@/components/phases/ReviewPhase";
+import { REJECT_OPTIONS } from "@/lib/rejectAnalysis";
 import type {
   Analysis,
   ArtifactClaim,
   ClinicalCase,
   ExposureShot,
   GrayWindow,
+  RejectReason,
 } from "@/types/rx";
 
 export function ReviewDialog({
@@ -30,6 +32,7 @@ export function ReviewDialog({
   onReset,
   onAdequate,
   onClaims,
+  onReject,
   onClose,
   onDeliver,
 }: {
@@ -57,11 +60,16 @@ export function ReviewDialog({
   onReset: () => void;
   onAdequate: (value: boolean) => void;
   onClaims: (claims: ArtifactClaim[]) => void;
+  onReject: (index: number, reason: RejectReason) => void;
   onClose: () => void;
   onDeliver: () => void;
 }) {
   const shot = shots[selectedIndex] ?? shots[shots.length - 1];
-  const ready = adequate !== null && claims.length > 0 && Boolean(shot);
+  const rejected = shots
+    .map((item, index) => ({ item, index }))
+    .filter((entry) => entry.index !== selectedIndex);
+  const rejectsReady = rejected.every((entry) => Boolean(entry.item.rejectReason));
+  const ready = adequate !== null && claims.length > 0 && Boolean(shot) && (shots.length < 2 || rejectsReady);
 
   function toggle(id: ArtifactClaim) {
     if (id === "none") {
@@ -136,6 +144,39 @@ export function ReviewDialog({
                 </li>
               ))}
             </ul>
+            {rejected.length > 0 ? (
+              <div className="mt-4 border-t border-[#2A486D] pt-3">
+                <p className="text-[11px] font-semibold tracking-[0.12em] text-[#9FB3C8] uppercase">
+                  Reject Analysis
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-[#9FB3C8]">
+                  Per ogni scatto non consegnato indica il motivo clinico del rifiuto.
+                </p>
+                <ul className="mt-2 space-y-2">
+                  {rejected.map(({ item, index }) => (
+                    <li key={item.index}>
+                      <label className="block text-[11px] text-[#F8FAFC]">
+                        Scatto {item.index}
+                        <select
+                          className="mt-1 h-8 w-full rounded-md border border-[#2A486D] bg-[#111D30] px-2 text-xs text-[#F8FAFC]"
+                          value={item.rejectReason ?? ""}
+                          onChange={(event) => onReject(index, event.target.value as RejectReason)}
+                        >
+                          <option value="" disabled>
+                            Motivo del rifiuto
+                          </option>
+                          {REJECT_OPTIONS.map((option) => (
+                            <option key={option.id} value={option.id}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         </div>
         <div className="border-t border-[#2A486D] p-3">

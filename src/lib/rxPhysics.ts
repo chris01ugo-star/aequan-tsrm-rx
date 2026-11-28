@@ -4,6 +4,7 @@ import {
   paintAttenuation,
   skinFractions,
 } from "@/lib/chestRenderer";
+import { renderDrr } from "@/lib/drrEngine";
 import { clamp } from "@/lib/number";
 import {
   anodeHeelAmplitude,
@@ -351,8 +352,67 @@ export function sameTechnique(a: Technique, b: Technique): boolean {
     a.centeringOffsetYCm === b.centeringOffsetYCm &&
     a.tubeAngulationCCDeg === b.tubeAngulationCCDeg &&
     a.tubeAngulationMLDeg === b.tubeAngulationMLDeg &&
-    a.markerSide === b.markerSide
+    a.markerSide === b.markerSide &&
+    a.exposureMode === b.exposureMode &&
+    a.aecDensityStep === b.aecDensityStep &&
+    a.aecChambers.left === b.aecChambers.left &&
+    a.aecChambers.center === b.aecChambers.center &&
+    a.aecChambers.right === b.aecChambers.right
   );
+}
+
+export function aecChambersSelected(technique: Technique): boolean {
+  const chambers = technique.aecChambers;
+  return Boolean(chambers?.left || chambers?.center || chambers?.right);
+}
+
+/** True quando l'AEC è armato ma nessuna camera è selezionata. */
+export function aecBlocksExposure(technique: Technique): boolean {
+  return technique.exposureMode === "aec" && !aecChambersSelected(technique);
+}
+
+/**
+ * mAs a cui l'AEC termina. Le camere laterali sul polmone chiudono vicino al DI 0.
+ * La sola camera centrale, sul mediastino, lascia erogare molta più fluenza.
+ */
+export function terminatedMas(technique: Technique): number {
+  const metrics = computeRoomMetrics(toRoomGeometry(technique));
+  const beam = effectiveBeam(technique);
+  const gridGain = detectorGain(technique.gridMode) * (1 - 0.1 * metrics.gridCutoff.factor);
+  const thickness = beam === "LL" ? 0.62 : 1;
+  const ap = beam === "AP" ? 1.08 : 1;
+  const distance = Math.pow(REFERENCE_DFF / technique.dff, 2);
+  const kvpTerm = Math.pow(technique.kvp / REFERENCE_KVP, 1.15);
+  const scale = distance * gridGain * kvpTerm * thickness * ap;
+  const density = 1.25 ** technique.aecDensityStep;
+  const mas = (density * chamberLoad(technique) * REFERENCE_MAS) / Math.max(scale, 0.05);
+  return Math.round(Math.min(80, Math.max(0.5, mas)) * 10) / 10;
+}
+
+function chamberLoad(technique: Technique): number {
+  const { left, center, right } = technique.aecChambers;
+  const shift = technique.centeringOffsetXCm;
+  const loads: number[] = [];
+  const lung = (side: number) => {
+    const towardMidline = shift * side;
+    if (towardMidline > 8) return 2.4;
+    if (towardMidline < -8) return 0.42;
+    const miss = Math.abs(shift);
+    if (miss < 3.5) return 1;
+    if (miss < 7) return 1.45;
+    return 1.8;
+  };
+  if (right) loads.push(lung(-1));
+  if (left) loads.push(lung(1));
+  if (center) loads.push(Math.abs(shift) < 6 ? 3.45 : 2.15);
+  if (loads.length === 0) return 1;
+  return loads.reduce((sum, value) => sum + value, 0) / loads.length;
+}
+
+/** Tecnica realmente erogata. In AEC sostituisce i mAs con la terminazione delle camere. */
+export function techniqueForExposure(technique: Technique): Technique {
+  if (technique.exposureMode !== "aec") return technique;
+  return { ...technique, mas: terminatedMas(technique) };
 }
 
 function mulberry32(seed: number): () => number {
@@ -468,6 +528,19 @@ function attenuationToMono2(
 
 export function renderLatent(technique: Technique, seed: number): LatentImage {
   const analysis = analyzeTechnique(technique);
+  try {
+    const drr = renderDrr(technique, seed, {
+      fluence: analysis.dosimetry.relativeExposure,
+      exposureTimeMs: analysis.dosimetry.exposureTimeMs,
+      ugMm: analysis.geometry.ugMm,
+      gridCutoff: analysis.geometry.gridCutoff,
+      gridAsymmetry: analysis.geometry.gridCutoffAsymmetry,
+      anodeHeel: analysis.geometry.anodeHeel,
+    });
+    if (drr) return drr;
+  } catch {
+    // WebGL2 assente o shader non linkato: resta il torace procedurale.
+  }
   const width = LATENT_WIDTH;
   const height = LATENT_HEIGHT;
   const canvas = document.createElement("canvas");

@@ -21,6 +21,29 @@ export type GridMode = "none" | "focused_100" | "focused_180";
 
 export type MarkerSide = "none" | "DX" | "SX";
 
+export type ExposureMode = "manual" | "aec";
+
+export type AecDensityStep = -2 | -1 | 0 | 1 | 2;
+
+export type AecChambers = {
+  /** Polmone sinistro (camera SX). */
+  left: boolean;
+  /** Mediastino / colonna. */
+  center: boolean;
+  /** Polmone destro (camera DX). */
+  right: boolean;
+};
+
+/** Motivo di rifiuto della Reject Analysis ospedaliera. */
+export type RejectReason =
+  | "posizionamento"
+  | "centratura"
+  | "esposizione"
+  | "cinetico"
+  | "griglia"
+  | "scapole"
+  | "aec";
+
 /**
  * Stato geometrico continuo della sala, in centimetri e gradi.
  * È la vista fisica di `Technique`: i controlli storici restano sul generatore.
@@ -72,6 +95,11 @@ export type Technique = {
   tubeAngulationMLDeg: number;
   gridMode: GridMode;
   markerSide: MarkerSide;
+  /** Manuale, oppure terminazione sulle camere AEC. Il Caso 01 parte in manuale. */
+  exposureMode: ExposureMode;
+  aecChambers: AecChambers;
+  /** Ogni step vale circa ±25% di dose rispetto alla soglia. */
+  aecDensityStep: AecDensityStep;
 };
 
 export type GeometryFactors = {
@@ -188,6 +216,8 @@ export type ExposureShot = {
   dosimetry: Dosimetry;
   latent: LatentImage;
   timestampLabel: string;
+  /** Compilato solo per gli scatti non consegnati. */
+  rejectReason?: RejectReason | null;
 };
 
 export type GrayWindow = {

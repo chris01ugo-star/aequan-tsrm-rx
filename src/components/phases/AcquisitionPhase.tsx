@@ -133,7 +133,7 @@ export function AcquisitionPhase({
         />
 
         <div className="w-[276px] shrink-0 border-l border-line">
-          <ParameterPanel technique={technique} analysis={analysis} onChange={onTechnique} />
+          <ParameterPanel technique={technique} onChange={onTechnique} />
         </div>
       </div>
 

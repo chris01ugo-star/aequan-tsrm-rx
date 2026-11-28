@@ -1,21 +1,26 @@
 "use client";
 
 import { formatNum } from "@/lib/number";
-import { describeDeviationIndex, DRL_CHEST_PA } from "@/lib/rxPhysics";
+import { analyzeTechnique, describeDeviationIndex, DRL_CHEST_PA } from "@/lib/rxPhysics";
 import { COLL_MAX_CM, COLL_MIN_CM, SID_MAX_CM, SID_MIN_CM, SID_STEP_CM } from "@/lib/rxGeometry";
-import type { Analysis, Technique } from "@/types/rx";
+import type { AecDensityStep, ExposureShot, Technique } from "@/types/rx";
 
 type ParameterPanelProps = {
   technique: Technique;
-  analysis: Analysis;
+  shot?: ExposureShot | null;
   onChange: (patch: Partial<Technique>) => void;
 };
 
-export function ParameterPanel({ technique, analysis, onChange }: ParameterPanelProps) {
-  const dose = analysis.dosimetry;
-  const di = describeDeviationIndex(dose.di);
-  const diText = `${dose.di > 0 ? "+" : ""}${formatNum(dose.di, 1)}`;
-  const diColor = di.tone === "ok" ? "#6BA3DE" : di.tone === "warn" ? "#F39C12" : "#EF4444";
+const DENSITY_STEPS: AecDensityStep[] = [-2, -1, 0, 1, 2];
+
+export function ParameterPanel({ technique, shot = null, onChange }: ParameterPanelProps) {
+  const acquired = shot?.dosimetry ?? null;
+  const post = shot ? analyzeTechnique(shot.technique) : null;
+  const di = acquired ? describeDeviationIndex(acquired.di) : null;
+  const diText = acquired ? `${acquired.di > 0 ? "+" : ""}${formatNum(acquired.di, 1)}` : "—";
+  const diColor = !di ? "#9FB3C8" : di.tone === "ok" ? "#6BA3DE" : di.tone === "warn" ? "#F39C12" : "#EF4444";
+  const aec = technique.exposureMode === "aec";
+  const noChamber = aec && !technique.aecChambers.left && !technique.aecChambers.center && !technique.aecChambers.right;
   return (
     <aside className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col bg-panel">
       <div className="flex h-8 shrink-0 items-center border-b border-line px-2">
@@ -34,16 +39,76 @@ export function ParameterPanel({ technique, analysis, onChange }: ParameterPanel
           digits={0}
           onChange={(kvp) => onChange({ kvp })}
         />
-        <Stepper
-          label="mAs"
-          unit="mAs"
-          value={technique.mas}
-          min={0.5}
-          max={40}
-          step={0.5}
-          digits={1}
-          onChange={(mas) => onChange({ mas })}
-        />
+        {aec ? (
+          <div className="border-b border-line px-2 py-1.5">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-[9px] tracking-[0.14em] text-muted uppercase">mAs</span>
+              <span className="font-mono text-[11px] text-ice">AUTO — terminazione AEC</span>
+            </div>
+          </div>
+        ) : (
+          <Stepper
+            label="mAs"
+            unit="mAs"
+            value={technique.mas}
+            min={0.5}
+            max={40}
+            step={0.5}
+            digits={1}
+            onChange={(mas) => onChange({ mas })}
+          />
+        )}
+        <div className="border-b border-line px-2 py-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[9px] tracking-[0.14em] text-muted uppercase">Esposizione</span>
+            <div className="flex gap-1">
+              <Mini on={technique.exposureMode === "manual"} onClick={() => onChange({ exposureMode: "manual" })}>
+                MANUALE
+              </Mini>
+              <Mini on={aec} onClick={() => onChange({ exposureMode: "aec" })}>
+                AEC
+              </Mini>
+            </div>
+          </div>
+          {aec ? (
+            <>
+              <div className="mt-1.5 flex gap-1">
+                <Mini
+                  on={technique.aecChambers.right}
+                  onClick={() => onChange({ aecChambers: { ...technique.aecChambers, right: !technique.aecChambers.right } })}
+                >
+                  DX
+                </Mini>
+                <Mini
+                  on={technique.aecChambers.center}
+                  onClick={() => onChange({ aecChambers: { ...technique.aecChambers, center: !technique.aecChambers.center } })}
+                >
+                  C
+                </Mini>
+                <Mini
+                  on={technique.aecChambers.left}
+                  onClick={() => onChange({ aecChambers: { ...technique.aecChambers, left: !technique.aecChambers.left } })}
+                >
+                  SX
+                </Mini>
+              </div>
+              <div className="mt-1 flex gap-1">
+                {DENSITY_STEPS.map((step) => (
+                  <Mini
+                    key={step}
+                    on={technique.aecDensityStep === step}
+                    onClick={() => onChange({ aecDensityStep: step })}
+                  >
+                    {step > 0 ? `+${step}` : `${step}`}
+                  </Mini>
+                ))}
+              </div>
+              {noChamber ? (
+                <p className="mt-1 text-[10px] leading-snug text-amber-rx">Seleziona almeno una camera AEC.</p>
+              ) : null}
+            </>
+          ) : null}
+        </div>
         <Stepper
           label="DFF"
           unit="cm"
@@ -99,66 +164,88 @@ export function ParameterPanel({ technique, analysis, onChange }: ParameterPanel
             Radioprotezione ALARA
           </div>
           <p className="mt-1 font-mono text-[9px] leading-relaxed text-muted">
-            Modello didattico — non è una misura dosimetrica. DAP = kerma in aria × area.
-            ESD = kerma × BSF {formatNum(dose.bsf, 2)}.
+            Campo {formatNum(technique.collW, 0)}×{formatNum(technique.collH, 0)} cm ·{" "}
+            {technique.gridMode === "none"
+              ? "griglia rimossa"
+              : technique.gridMode === "focused_100"
+                ? "griglia 100 cm"
+                : "griglia 180 cm"}{" "}
+            · fuoco {technique.focal === "FINE" ? "0,6 mm" : "1,2 mm"}
           </p>
-          <DoseReadout
-            label="DAP"
-            value={formatNum(dose.dapDGyCm2, 2)}
-            unit="dGy·cm²"
-            ratio={dose.dapDGyCm2 / DRL_CHEST_PA.dapDGyCm2}
-            limitLabel={`DRL ${formatNum(DRL_CHEST_PA.dapDGyCm2, 2)}`}
-          />
-          <DoseReadout
-            label="ESD"
-            value={formatNum(dose.esdMgy, 3)}
-            unit="mGy"
-            ratio={dose.esdMgy / DRL_CHEST_PA.esdMgy}
-            limitLabel={`DRL ${formatNum(DRL_CHEST_PA.esdMgy, 2)}`}
-          />
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <div>
-              <div className="flex items-baseline justify-between">
+          {acquired && shot ? (
+            <>
+              <p className="mt-1 font-mono text-[9px] leading-relaxed text-muted">
+                Modello didattico. DAP = kerma in aria × area. ESD = kerma × BSF {formatNum(acquired.bsf, 2)}.
+              </p>
+              <DoseReadout
+                label="DAP"
+                value={formatNum(acquired.dapDGyCm2, 2)}
+                unit="dGy·cm²"
+                ratio={acquired.dapDGyCm2 / DRL_CHEST_PA.dapDGyCm2}
+                limitLabel={`DRL ${formatNum(DRL_CHEST_PA.dapDGyCm2, 2)}`}
+              />
+              <DoseReadout
+                label="ESD"
+                value={formatNum(acquired.esdMgy, 3)}
+                unit="mGy"
+                ratio={acquired.esdMgy / DRL_CHEST_PA.esdMgy}
+                limitLabel={`DRL ${formatNum(DRL_CHEST_PA.esdMgy, 2)}`}
+              />
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <div>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-[9px] tracking-[0.14em] text-muted">EI</span>
+                    <span className="font-mono text-[13px] tabular-nums text-cyan-clin">
+                      {formatNum(acquired.ei, 0)}
+                    </span>
+                  </div>
+                  <p className="font-mono text-[9px] text-muted">target {acquired.eiTarget}</p>
+                </div>
+                <div>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-[9px] tracking-[0.14em] text-muted">DI</span>
+                    <span className="font-mono text-[13px] tabular-nums" style={{ color: diColor }}>
+                      {diText}
+                    </span>
+                  </div>
+                  <p className="font-mono text-[9px]" style={{ color: diColor }}>
+                    {di?.label} · IEC 62494-1
+                  </p>
+                </div>
+              </div>
+              <p className="mt-1 font-mono text-[9px] text-muted">
+                mAs erogati {formatNum(shot.technique.mas, 1)} · t {formatNum(acquired.exposureTimeMs, 0)} ms
+              </p>
+              <ul className="mt-2 space-y-1">
+                {post?.warnings.slice(0, 3).map((warning) => (
+                  <li
+                    key={warning.text}
+                    className={`text-[10px] leading-snug ${
+                      warning.level === "alert"
+                        ? "text-risk"
+                        : warning.level === "warn"
+                          ? "text-amber-rx"
+                          : "text-muted"
+                    }`}
+                  >
+                    {warning.text}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <div>
                 <span className="text-[9px] tracking-[0.14em] text-muted">EI</span>
-                <span className="font-mono text-[13px] tabular-nums text-cyan-clin">
-                  {formatNum(dose.ei, 0)}
-                </span>
+                <p className="font-mono text-[13px] text-ice">—</p>
               </div>
-              <p className="font-mono text-[9px] text-muted">
-                target {dose.eiTarget}
-              </p>
-            </div>
-            <div>
-              <div className="flex items-baseline justify-between">
+              <div>
                 <span className="text-[9px] tracking-[0.14em] text-muted">DI</span>
-                <span className="font-mono text-[13px] tabular-nums" style={{ color: diColor }}>
-                  {diText}
-                </span>
+                <p className="font-mono text-[13px] text-ice">—</p>
+                <p className="font-mono text-[9px] text-muted">post-esposizione</p>
               </div>
-              <p className="font-mono text-[9px]" style={{ color: diColor }}>
-                {di.label} · IEC 62494-1
-              </p>
             </div>
-          </div>
-          <p className="mt-1 font-mono text-[9px] text-muted">
-            Bucky ×{formatNum(dose.buckyFactor, 0)} · t {formatNum(dose.exposureTimeMs, 0)} ms
-          </p>
-          <ul className="mt-2 space-y-1">
-            {analysis.warnings.slice(0, 3).map((warning) => (
-              <li
-                key={warning.text}
-                className={`text-[10px] leading-snug ${
-                  warning.level === "alert"
-                    ? "text-risk"
-                    : warning.level === "warn"
-                      ? "text-amber-rx"
-                      : "text-muted"
-                }`}
-              >
-                {warning.text}
-              </li>
-            ))}
-          </ul>
+          )}
         </section>
       </div>
     </aside>
@@ -204,6 +291,20 @@ function DoseReadout({
         <span className="text-muted">{limitLabel}</span>
       </div>
     </div>
+  );
+}
+
+function Mini({ on, onClick, children }: { on: boolean; onClick: () => void; children: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`h-6 min-w-0 flex-1 rounded-md border px-1 font-mono text-[10px] ${
+        on ? "border-[#F8FAFC] bg-[#F8FAFC] text-[#1E324E]" : "border-line bg-raised text-ice"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 

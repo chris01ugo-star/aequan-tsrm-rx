@@ -1,4 +1,5 @@
 import { formatNum } from "@/lib/number";
+import { defectsOf, rejectLabel } from "@/lib/rejectAnalysis";
 import { computeRoomMetrics, toRoomGeometry } from "@/lib/rxGeometry";
 import { analyzeTechnique, DRL_CHEST_PA, EI_TARGET } from "@/lib/rxPhysics";
 import type {
@@ -7,11 +8,17 @@ import type {
   Evaluation,
   Finding,
   GeometryEvidence,
+  RejectReason,
   ReviewDeclaration,
   ScoreLine,
   ScoreSection,
   Technique,
 } from "@/types/rx";
+
+export type RejectedExposure = {
+  technique: Technique;
+  reason: RejectReason;
+};
 
 function round1(value: number): number {
   return Math.round(value * 10) / 10;
@@ -169,6 +176,7 @@ function scoreJustification(
   review: ReviewDeclaration,
   present: Exclude<ArtifactClaim, "none">[],
   faults: Analysis["faults"],
+  rejected: RejectedExposure[] = [],
 ): { score: number; findings: Finding[]; lines: ScoreLine[] } {
   const lines: ScoreLine[] = [];
   const claimed = review.claims.filter((claim): claim is Exclude<ArtifactClaim, "none"> => claim !== "none");
@@ -251,6 +259,25 @@ function scoreJustification(
     });
   }
 
+  for (const item of rejected) {
+    const defects = defectsOf(item.technique);
+    const coherent = defects.includes(item.reason);
+    if (coherent) {
+      findings.push({
+        level: "ok",
+        text: `Reject Analysis: «${rejectLabel(item.reason)}» coincide con un difetto misurato sullo scatto scartato.`,
+      });
+    } else {
+      points -= 0.7;
+      findings.push({
+        level: "error",
+        text: `Reject Analysis: «${rejectLabel(item.reason)}» non è il difetto di quello scatto${
+          defects.length ? ` (presenti: ${defects.map(rejectLabel).join(", ")})` : ""
+        }.`,
+      });
+    }
+  }
+
   lines.push({
     label: "Coerenza tra dichiarazione e scatto",
     points: clampScore(points, 5),
@@ -264,6 +291,7 @@ export function evaluateExam(
   shotCount: number,
   cumulativeDap: number,
   review: ReviewDeclaration,
+  rejected: RejectedExposure[] = [],
 ): Evaluation {
   const analysis = analyzeTechnique(technique);
   const { dosimetry, geometry, collimation, faults } = analysis;
@@ -360,6 +388,7 @@ export function evaluateExam(
   const imageFindings = [
     ...kvp.findings,
     ...exposure.findings,
+    ...aecFindings(technique),
     ...gridFindings,
     ...focalFindings,
     ...sharpFindings,
@@ -685,7 +714,7 @@ export function evaluateExam(
   };
 
   const present = presentArtifacts(technique, analysis);
-  const justification = scoreJustification(review, present, faults);
+  const justification = scoreJustification(review, present, faults, rejected);
 
   const artifacts: ScoreSection = {
     id: "artifacts",
@@ -726,11 +755,44 @@ export function evaluateExam(
     max: 30,
     verdict,
     summary,
-    geometryEvidence: buildGeometryEvidence(technique, analysis),
+    geometryEvidence: buildGeometryEvidence(technique, analysis, rejected),
   };
 }
 
-function buildGeometryEvidence(technique: Technique, analysis: Analysis): GeometryEvidence[] {
+function aecFindings(technique: Technique): Finding[] {
+  if (technique.exposureMode !== "aec") return [];
+  const { left, center, right } = technique.aecChambers;
+  const laterals = left && right && !center;
+  const centerOnly = center && !left && !right;
+  if (laterals) {
+    return [
+      {
+        level: "ok",
+        text: "AEC sulle camere laterali DX e SX: la terminazione legge il parenchima, non il mediastino. È la selezione standard del torace PA.",
+      },
+    ];
+  }
+  if (centerOnly) {
+    return [
+      {
+        level: "error",
+        text: "AEC con la sola camera centrale: la soglia è raggiunta sul mediastino e la colonna, e i campi polmonari restano sovraesposti.",
+      },
+    ];
+  }
+  return [
+    {
+      level: "warn",
+      text: "Selezione AEC incompleta o mista. Sul torace PA le camere laterali, senza la centrale, sono la configurazione di riferimento.",
+    },
+  ];
+}
+
+function buildGeometryEvidence(
+  technique: Technique,
+  analysis: Analysis,
+  rejected: RejectedExposure[] = [],
+): GeometryEvidence[] {
   const state = toRoomGeometry(technique);
   const metrics = computeRoomMetrics(state);
   const rows: GeometryEvidence[] = [];
@@ -804,6 +866,46 @@ function buildGeometryEvidence(technique: Technique, analysis: Analysis): Geomet
             ? "Esposizione dentro la banda ottimale −1 … +1."
             : "Esposizione fuori dalla banda ottimale, ancora lontana dalle soglie ±3.",
   });
+  rows.push({
+    cause:
+      technique.kvp >= 110 && technique.kvp <= 125
+        ? `Alto voltaggio ${formatNum(technique.kvp, 0)} kVp`
+        : `kVp ${formatNum(technique.kvp, 0)}`,
+    evidence:
+      technique.kvp >= 110 && technique.kvp <= 125
+        ? "Coste ammorbidite: colonna dorsale, vasi retrocardiaci e parenchima restano leggibili."
+        : technique.kvp < 96
+          ? "Basso voltaggio: coste molto radiopache e mediastino poco penetrato."
+          : "Contrasto intermedio rispetto alla tecnica toracica ad alto voltaggio (110–125 kVp).",
+  });
+  if (technique.exposureMode === "aec") {
+    const { left, center, right } = technique.aecChambers;
+    const centerOnly = center && !left && !right;
+    rows.push({
+      cause: centerOnly
+        ? "AEC: sola camera centrale"
+        : `AEC: camere ${[right ? "DX" : "", center ? "C" : "", left ? "SX" : ""].filter(Boolean).join("+") || "nessuna"}`,
+      evidence: centerOnly
+        ? "Terminazione sul mediastino: mAs elevati e campi polmonari sovraesposti."
+        : left && right && !center
+          ? "Terminazione sulle camere polmonari laterali, fluenza vicina al target se la centratura è sul torace."
+          : "Selezione delle camere diversa dallo standard DX+SX del torace PA.",
+    });
+  } else {
+    rows.push({
+      cause: `mAs manuali ${formatNum(technique.mas, 1)}`,
+      evidence: "Nessuna terminazione automatica: il DI misura direttamente la scelta dei mAs.",
+    });
+  }
+  for (const item of rejected) {
+    const coherent = defectsOf(item.technique).includes(item.reason);
+    rows.push({
+      cause: `Scatto scartato · ${rejectLabel(item.reason)}`,
+      evidence: coherent
+        ? "Il motivo di rifiuto corrisponde a un difetto misurato su quell'esposizione."
+        : "Il motivo di rifiuto non corrisponde ai difetti misurati su quell'esposizione.",
+    });
+  }
   rows.push({
     cause: technique.markerSide === "none" ? "Marker assente" : `Marker ${technique.markerSide}`,
     evidence:

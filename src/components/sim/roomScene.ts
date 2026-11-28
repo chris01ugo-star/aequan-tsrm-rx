@@ -143,6 +143,21 @@ export function createRoomScene(): {
   detector.position.z = 0.8;
   stand.add(detector);
 
+  const chamberBox = new THREE.BoxGeometry(6.2, 10.4, 0.2);
+  const chamberGeo = trackGeo(new THREE.EdgesGeometry(chamberBox));
+  chamberBox.dispose();
+  const chamberMat = (opacity: number) =>
+    trackMat(new THREE.LineBasicMaterial({ color: 0x6ba3de, transparent: true, opacity }));
+  const chamberRight = new THREE.LineSegments(chamberGeo, chamberMat(0.95));
+  const chamberCenter = new THREE.LineSegments(chamberGeo, chamberMat(0.95));
+  const chamberLeft = new THREE.LineSegments(chamberGeo, chamberMat(0.95));
+  chamberRight.position.set(-9, -3, 0.4);
+  chamberCenter.position.set(0, -7.5, 0.4);
+  chamberLeft.position.set(9, -3, 0.4);
+  const aecGroup = new THREE.Group();
+  aecGroup.add(chamberRight, chamberCenter, chamberLeft);
+  scene.add(aecGroup);
+
   const table = new THREE.Group();
   scene.add(table);
   const tableTop = new THREE.Mesh(trackGeo(new THREE.BoxGeometry(210, 2.2, 78)), glassMat);
@@ -314,6 +329,24 @@ export function createRoomScene(): {
     stand.visible = !supine;
     table.visible = supine;
     detCenter.copy(supine ? SUPINE_DET : ERECT_DET);
+    const showAec = training && technique.exposureMode === "aec";
+    aecGroup.visible = showAec;
+    aecGroup.position.copy(detCenter);
+    if (supine) {
+      aecGroup.rotation.x = Math.PI / 2;
+      aecGroup.position.y = 79.5;
+    } else {
+      aecGroup.rotation.x = 0;
+      aecGroup.position.z = 1.6;
+    }
+    const setChamber = (line: THREE.LineSegments, active: boolean) => {
+      const material = line.material as THREE.LineBasicMaterial;
+      material.opacity = active ? 0.95 : 0.22;
+      material.color.setHex(active ? 0xf8fafc : 0x6ba3de);
+    };
+    setChamber(chamberRight, technique.aecChambers.right);
+    setChamber(chamberCenter, technique.aecChambers.center);
+    setChamber(chamberLeft, technique.aecChambers.left);
 
     if (supine) {
       cranial.set(0, 0, -1);

@@ -13,10 +13,12 @@ import { clampTechnique } from "@/lib/rxGeometry";
 import { evaluateExam } from "@/lib/evaluation";
 import { formatClock } from "@/lib/number";
 import {
+  aecBlocksExposure,
   analyzeTechnique,
   computeDosimetry,
   DEFAULT_WINDOW,
   renderLatent,
+  techniqueForExposure,
 } from "@/lib/rxPhysics";
 import {
   getProgressSnapshot,
@@ -28,7 +30,7 @@ import {
   subscribeSessions,
   type SavedSession,
 } from "@/lib/sessionStore";
-import type { ArtifactClaim, Evaluation, ExposureShot, GrayWindow, Technique } from "@/types/rx";
+import type { ArtifactClaim, Evaluation, ExposureShot, GrayWindow, RejectReason, Technique } from "@/types/rx";
 import type { ViewerTool } from "@/components/console/ViewerPanel";
 
 type Screen = "dashboard" | "simulation" | "report";
@@ -107,8 +109,8 @@ export function RxConsole() {
   }
 
   function expose() {
-    if (acquiring || shots.length >= 3) return;
-    const snapshot = technique;
+    if (acquiring || shots.length >= 3 || aecBlocksExposure(technique)) return;
+    const snapshot = techniqueForExposure(technique);
     setAcquiring(true);
     if (timer.current !== null) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
@@ -138,11 +140,16 @@ export function RxConsole() {
 
   function deliver() {
     const shot = shots[selectedIndex];
+    const rejectsMissing = shots.some((item, index) => index !== selectedIndex && !item.rejectReason);
     if (!shot || adequate === null || claims.length === 0 || report) return;
+    if (shots.length > 1 && rejectsMissing) return;
+    const rejected = shots
+      .filter((item) => item !== shot && item.rejectReason)
+      .map((item) => ({ technique: item.technique, reason: item.rejectReason as RejectReason }));
     const evaluation = evaluateExam(shot.technique, shots.length, cumulativeDap, {
       adequate,
       claims,
-    });
+    }, rejected);
     const next: Report = {
       evaluation,
       shot,
@@ -159,6 +166,9 @@ export function RxConsole() {
       shots: shots.length,
       cumulativeDap,
       savedAt: formatClock(new Date()),
+      rejects: shots
+        .filter((item) => item !== shot && item.rejectReason)
+        .map((item) => ({ shot: item.index, reason: item.rejectReason as string })),
     };
     saveSessions([entry, ...sessions]);
     setProgressCase("");
@@ -235,6 +245,11 @@ export function RxConsole() {
             onSelectShot={setSelectedIndex}
             onAdequate={setAdequate}
             onClaims={setClaims}
+            onReject={(index, reason) =>
+              setShots((current) =>
+                current.map((item, i) => (i === index ? { ...item, rejectReason: reason } : item)),
+              )
+            }
             onClose={() => setReviewOpen(false)}
             onDeliver={deliver}
             {...viewProps}

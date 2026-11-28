@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GeometryPanel } from "@/components/console/GeometryPanel";
 import { ParameterPanel } from "@/components/console/ParameterPanel";
 import { ViewerPanel, type ViewerTool } from "@/components/console/ViewerPanel";
 import { Room3DViewport } from "@/components/sim/Room3DViewport";
 import { exposeBtn, primaryBtn } from "@/components/ui/buttons";
 import { formatNum } from "@/lib/number";
-import { sameTechnique } from "@/lib/rxPhysics";
+import { warmupDrr } from "@/lib/drrEngine";
+import { aecBlocksExposure, sameTechnique } from "@/lib/rxPhysics";
 import type { Analysis, ClinicalCase, ExposureShot, GrayWindow, Technique } from "@/types/rx";
 
 const MAX_SHOTS = 3;
@@ -73,6 +74,13 @@ export function SimulationScreen({
   const latest = shots[shots.length - 1] ?? null;
   const dirty = Boolean(latest && shot === latest && !sameTechnique(latest.technique, technique));
   const atLimit = shots.length >= MAX_SHOTS;
+  const aecBlocked = aecBlocksExposure(technique);
+  const shownShot = shots[selectedIndex] ?? null;
+
+  useEffect(() => {
+    const id = window.setTimeout(() => warmupDrr(), 60);
+    return () => window.clearTimeout(id);
+  }, []);
   const clock = `${String(Math.floor(elapsedSec / 60)).padStart(2, "0")}:${String(elapsedSec % 60).padStart(2, "0")}`;
 
   return (
@@ -186,7 +194,7 @@ export function SimulationScreen({
         </section>
 
         <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-[#2A486D] bg-[#16253B] shadow-sm">
-          <ParameterPanel technique={technique} analysis={analysis} onChange={onTechnique} />
+          <ParameterPanel technique={technique} shot={shownShot} onChange={onTechnique} />
         </section>
       </div>
 
@@ -206,7 +214,12 @@ export function SimulationScreen({
           >
             {layout === "split" ? "Layout console" : "Espandi 3D"}
           </button>
-          <button type="button" onClick={onExpose} disabled={acquiring || atLimit} className={exposeBtn}>
+          <button
+            type="button"
+            onClick={onExpose}
+            disabled={acquiring || atLimit || aecBlocked}
+            className={exposeBtn}
+          >
             {acquiring ? "Acquisizione…" : atLimit ? "Limite 3 scatti" : "Avvia acquisizione RX"}
           </button>
           <button type="button" onClick={onReview} disabled={shots.length < 1 || acquiring} className={primaryBtn}>

@@ -308,6 +308,16 @@ function executedValue(
         text: `${di > 0 ? "+" : ""}${formatNum(di, 1)}`,
         aligned: di >= -1 && di <= 1,
       };
+    case "AEC": {
+      if (technique.exposureMode !== "aec") {
+        return { text: `Manuale ${formatNum(technique.mas, 1)} mAs`, aligned: di >= -1 && di <= 1 };
+      }
+      const laterals = technique.aecChambers.left && technique.aecChambers.right && !technique.aecChambers.center;
+      return {
+        text: laterals ? "Camere DX+SX" : "Selezione non standard",
+        aligned: laterals && di >= -1 && di <= 1,
+      };
+    }
     default:
       return {
         text: `${formatNum(technique.collW, 0)}×${formatNum(technique.collH, 0)} cm`,

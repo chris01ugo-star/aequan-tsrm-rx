@@ -141,7 +141,23 @@ export function clampTechnique(technique: Technique): Technique {
     shouldersRolledForward: Boolean(technique.shouldersRolledForward),
     gridMode,
     grid: gridMode !== "none",
+    exposureMode: technique.exposureMode === "aec" ? "aec" : "manual",
+    aecChambers: {
+      left: Boolean(technique.aecChambers?.left),
+      center: technique.aecChambers ? Boolean(technique.aecChambers.center) : true,
+      right: Boolean(technique.aecChambers?.right),
+    },
+    aecDensityStep: sanitizeDensity(technique.aecDensityStep),
   };
+}
+
+function sanitizeDensity(step: number | undefined): Technique["aecDensityStep"] {
+  const rounded = Math.round(step ?? 0);
+  if (rounded <= -2) return -2;
+  if (rounded === -1) return -1;
+  if (rounded === 1) return 1;
+  if (rounded >= 2) return 2;
+  return 0;
 }
 
 /**
