@@ -1,15 +1,26 @@
 import { formatNum } from "@/lib/number";
-import { analyzeTechnique, DRL_CHEST_PA } from "@/lib/rxPhysics";
+import { defectsOf, rejectLabel } from "@/lib/rejectAnalysis";
+import { computeRoomMetrics, toRoomGeometry } from "@/lib/rxGeometry";
+import { analyzeTechnique, DRL_CHEST_PA, EI_TARGET } from "@/lib/rxPhysics";
 import type {
   Analysis,
   ArtifactClaim,
+  Dosimetry,
   Evaluation,
   Finding,
+  GeometryEvidence,
+  RejectReason,
   ReviewDeclaration,
   ScoreLine,
   ScoreSection,
   Technique,
+  ExamConduct,
 } from "@/types/rx";
+
+export type RejectedExposure = {
+  technique: Technique;
+  reason: RejectReason;
+};
 
 function round1(value: number): number {
   return Math.round(value * 10) / 10;
@@ -75,57 +86,63 @@ function kvpPoints(kvp: number): { points: number; findings: Finding[] } {
   };
 }
 
-function exposurePoints(ei: number): { points: number; findings: Finding[] } {
-  if (ei >= DRL_CHEST_PA.eiMin && ei <= DRL_CHEST_PA.eiMax) {
+function signed(value: number, digits: number): string {
+  const text = formatNum(value, digits);
+  return value > 0 ? `+${text}` : text;
+}
+
+function exposurePoints(ei: number, di: number): { points: number; findings: Finding[] } {
+  const index = `DI ${signed(di, 1)} (IEC 62494-1), EI ${formatNum(ei, 0)} su target ${EI_TARGET}`;
+  if (di >= -1 && di <= 1) {
     return {
       points: 3,
       findings: [
         {
           level: "ok",
-          text: `EI ${formatNum(ei, 0)} in banda (200–420). Fluenza al detettore compatibile con un torace digitale.`,
+          text: `${index}: banda ottimale −1 … +1. Fluenza al detettore compatibile con un torace digitale.`,
         },
       ],
     };
   }
-  if (ei < 120) {
+  if (di < -3) {
     return {
       points: 0.3,
       findings: [
         {
           level: "error",
-          text: `EI ${formatNum(ei, 0)}: sottoesposizione. L'immagine è chiara e il rumore quantico (mottle) maschera i vasi e il tenue addensamento basale.`,
+          text: `${index}: sottoesposizione. Il rumore quantico maschera i vasi e il tenue addensamento basale.`,
         },
       ],
     };
   }
-  if (ei < 200) {
+  if (di > 3) {
+    return {
+      points: 0.3,
+      findings: [
+        {
+          level: "error",
+          text: `${index}: dose creep. La fluenza supera il target senza guadagno diagnostico e i campi polmonari tendono a chiudersi.`,
+        },
+      ],
+    };
+  }
+  if (di < -1) {
     return {
       points: 1.6,
       findings: [
         {
           level: "warn",
-          text: `EI ${formatNum(ei, 0)} sotto la banda utile. Rumore quantico visibile: alza i mAs o avvicina la tecnica al riferimento (circa 3 mAs a 120 kVp, 180 cm, griglia inserita).`,
-        },
-      ],
-    };
-  }
-  if (ei <= 680) {
-    return {
-      points: 1.5,
-      findings: [
-        {
-          level: "warn",
-          text: `EI ${formatNum(ei, 0)} sopra banda. Dose al detettore inutile: i campi polmonari tendono a chiudersi.`,
+          text: `${index}: sotto la banda ottimale, ancora sopra la soglia di sottoesposizione (−3).`,
         },
       ],
     };
   }
   return {
-    points: 0.3,
+    points: 1.6,
     findings: [
       {
-        level: "error",
-        text: `EI ${formatNum(ei, 0)}: sovraesposizione / bruciatura. I polmoni si chiudono al nero e la dose viola il principio ALARA.`,
+        level: "warn",
+        text: `${index}: sopra la banda ottimale, ancora sotto la soglia di dose creep (+3).`,
       },
     ],
   };
@@ -161,6 +178,7 @@ function scoreJustification(
   review: ReviewDeclaration,
   present: Exclude<ArtifactClaim, "none">[],
   faults: Analysis["faults"],
+  rejected: RejectedExposure[] = [],
 ): { score: number; findings: Finding[]; lines: ScoreLine[] } {
   const lines: ScoreLine[] = [];
   const claimed = review.claims.filter((claim): claim is Exclude<ArtifactClaim, "none"> => claim !== "none");
@@ -243,6 +261,25 @@ function scoreJustification(
     });
   }
 
+  for (const item of rejected) {
+    const defects = defectsOf(item.technique);
+    const coherent = defects.includes(item.reason);
+    if (coherent) {
+      findings.push({
+        level: "ok",
+        text: `Reject Analysis: «${rejectLabel(item.reason)}» coincide con un difetto misurato sullo scatto scartato.`,
+      });
+    } else {
+      points -= 0.7;
+      findings.push({
+        level: "error",
+        text: `Reject Analysis: «${rejectLabel(item.reason)}» non è il difetto di quello scatto${
+          defects.length ? ` (presenti: ${defects.map(rejectLabel).join(", ")})` : ""
+        }.`,
+      });
+    }
+  }
+
   lines.push({
     label: "Coerenza tra dichiarazione e scatto",
     points: clampScore(points, 5),
@@ -251,36 +288,79 @@ function scoreJustification(
   return { score: clampScore(points, 5), findings, lines };
 }
 
+const OPEN_CONDUCT: ExamConduct = {
+  mode: "guided",
+  modalityOk: true,
+  identityConfirmed: true,
+  pregnancyHandled: true,
+  metalsCleared: true,
+  deliveredWithMetal: false,
+  metalRecognized: false,
+  instructionGiven: true,
+  routineContactShield: false,
+  acceptable: true,
+  pathologyOk: true,
+  anatomyChecks: 4,
+  quizOk: true,
+  qualityCoherent: true,
+};
+
 export function evaluateExam(
   technique: Technique,
   shotCount: number,
   cumulativeDap: number,
   review: ReviewDeclaration,
+  rejected: RejectedExposure[] = [],
+  measured?: Dosimetry,
+  conduct: ExamConduct = OPEN_CONDUCT,
 ): Evaluation {
   const analysis = analyzeTechnique(technique);
+  if (measured) analysis.dosimetry = measured;
   const { dosimetry, geometry, collimation, faults } = analysis;
 
   const kvp = kvpPoints(technique.kvp);
-  const exposure = exposurePoints(dosimetry.ei);
+  const exposure = exposurePoints(dosimetry.ei, dosimetry.di);
 
   const gridFindings: Finding[] = [];
   let gridPoints = 1.5;
-  if (technique.grid) {
+  const cutoff = geometry.gridCutoff;
+  if (technique.gridMode === "none") {
+    gridPoints = technique.kvp > 85 ? 0.2 : 0.8;
     gridFindings.push({
-      level: "ok",
-      text: "Griglia 12:1 inserita: la radiazione diffusa del torace ad alto kVp è controllata.",
+      level: technique.kvp > 85 ? "error" : "warn",
+      text:
+        technique.kvp > 85
+          ? "Griglia rimossa con kVp alto: la radiazione diffusa non è controllata e il contrasto del torace cade."
+          : "Griglia rimossa. Lo scatter è minore, ma il torace PA adulto si esegue con griglia focalizzata.",
     });
-  } else if (technique.kvp > 85) {
-    gridPoints = 0.2;
+  } else if (cutoff > 0.2) {
+    gridPoints = 0.25;
+    const why =
+      geometry.gridCutoffAsymmetry !== 0
+        ? "disallineamento trasversale rispetto alle lamelle"
+        : technique.gridMode === "focused_100"
+          ? "griglia focalizzata a 100 cm usata fuori fuoco"
+          : "griglia focalizzata a 180 cm usata sotto i 140 cm di DFF";
     gridFindings.push({
       level: "error",
-      text: "Griglia rimossa con kVp > 85: velo grigio da scatter, contrasto soggettivo nettamente ridotto. Sul torace adulto la griglia resta inserita.",
+      text: `Grid cutoff (fattore ${formatNum(cutoff, 2)}): ${why}. Bande di attenuazione periferica e perdita di uniformità.`,
     });
-  } else {
-    gridPoints = 0.8;
+  } else if (technique.gridMode === "focused_180" && technique.dff >= 160) {
+    gridFindings.push({
+      level: "ok",
+      text: `Griglia focalizzata 180 cm, rapporto 12:1, Bucky ×${formatNum(dosimetry.buckyFactor, 0)}. DFF ${formatNum(technique.dff, 0)} cm dentro il fuoco: scatter ridotto, cutoff assente.`,
+    });
+  } else if (technique.gridMode === "focused_100") {
+    gridPoints = 0.9;
     gridFindings.push({
       level: "warn",
-      text: "Griglia rimossa. Sotto 85 kVp lo scatter è minore, ma questa non è la tecnica del torace PA adulto.",
+      text: "Griglia focalizzata 100 cm, rapporto 10:1. È a fuoco solo vicino a 100 cm e non è la griglia del teleradiografo a 180 cm.",
+    });
+  } else {
+    gridPoints = 1;
+    gridFindings.push({
+      level: "warn",
+      text: `Griglia ${technique.gridMode === "focused_180" ? "180 cm" : "inserita"} senza cutoff evidente, ma la DFF non è quella di fuoco del torace eretto.`,
     });
   }
 
@@ -330,6 +410,7 @@ export function evaluateExam(
   const imageFindings = [
     ...kvp.findings,
     ...exposure.findings,
+    ...aecFindings(technique),
     ...gridFindings,
     ...focalFindings,
     ...sharpFindings,
@@ -337,7 +418,8 @@ export function evaluateExam(
   if (
     kvp.points >= 3 &&
     exposure.points >= 3 &&
-    technique.grid &&
+    technique.gridMode === "focused_180" &&
+    cutoff <= 0.2 &&
     technique.respiration !== "LIBERO"
   ) {
     imageFindings.push({
@@ -365,21 +447,21 @@ export function evaluateExam(
   };
 
   const positionFindings: Finding[] = [];
-  let projectionPoints = 3;
+  let projectionPoints = 2;
   if (technique.projection === "LL" || geometry.beam === "LL") {
-    projectionPoints = 0.4;
+    projectionPoints = 0.3;
     positionFindings.push({
       level: "error",
       text: "Proiezione laterale: non è l'incidenza richiesta. Il quesito chiede un PA. In laterale l'addensamento è sovrapposto e non sostituisce il frontale.",
     });
   } else if (technique.projection === "PA" && technique.decubitus === "SUPINO") {
-    projectionPoints = 0.7;
+    projectionPoints = 0.4;
     positionFindings.push({
       level: "error",
       text: "È selezionato PA ma il paziente è supino. In clinostatismo il fascio è una AP da tavolo: la silhouette cardiaca si ingrandisce (falsa cardiomegalia) e le clavicole si orizzontalizzano.",
     });
   } else if (geometry.beam === "AP") {
-    projectionPoints = 1;
+    projectionPoints = 0.6;
     positionFindings.push({
       level: "error",
       text: "Proiezione AP: il cuore è lontano dal detettore. L'ingrandimento geometrico simula una cardiomegalia e non è l'incidenza standard di questo caso.",
@@ -391,9 +473,9 @@ export function evaluateExam(
     });
   }
 
-  let decubitusPoints = 1.5;
+  let decubitusPoints = 1;
   if (technique.decubitus === "SUPINO") {
-    decubitusPoints = 0.3;
+    decubitusPoints = 0.2;
     positionFindings.push({
       level: "error",
       text: "Decubito supino. Per il torace standard e per valutare un piccolo versamento o l'espansione delle basi serve l'ortostatismo, salvo che il paziente non collabori.",
@@ -405,20 +487,20 @@ export function evaluateExam(
     });
   }
 
-  let breathPoints = 2;
+  let breathPoints = 1.5;
   if (technique.respiration === "INSP") {
     positionFindings.push({
       level: "ok",
       text: "Apnea inspiratoria profonda: campi polmonari espansi, circa nove archi costali posteriori, cuore non artificiosamente trasverso.",
     });
   } else if (technique.respiration === "ESP") {
-    breathPoints = 0.5;
+    breathPoints = 0.4;
     positionFindings.push({
       level: "error",
       text: "Apnea espiratoria: i polmoni sono poveri di volume, le basi si affollano e il cuore appare più largo. Per la polmonite serve l'inspirio, non l'espirio (utile semmai per un pneumotorace mirato).",
     });
   } else {
-    breathPoints = 0.2;
+    breathPoints = 0.15;
     positionFindings.push({
       level: "error",
       text: "Respiro libero al posto dell'apnea inspiratoria. Oltre al mosso, l'espansione è incompleta.",
@@ -430,7 +512,68 @@ export function evaluateExam(
       level: "error",
       text: `DFF ${formatNum(technique.dff, 0)} cm: sotto i 150 cm la silhouette cardiaca si ingrandisce anche in PA. Il riferimento del torace eretto è 180 cm.`,
     });
-    projectionPoints = Math.max(0.8, projectionPoints - 0.8);
+    projectionPoints = Math.max(0.4, projectionPoints - 0.6);
+  }
+
+  const rotation = technique.patientRotationDeg;
+  let rotationPoints = 1;
+  if (Math.abs(rotation) <= 3) {
+    positionFindings.push({
+      level: "ok",
+      text: `Rotazione assiale ${signed(rotation, 0)}°: entro ±3°. I capi mediali delle clavicole restano simmetrici rispetto ai processi spinosi (EUR 16260).`,
+    });
+  } else if (Math.abs(rotation) <= 8) {
+    rotationPoints = 0.4;
+    positionFindings.push({
+      level: "warn",
+      text: `Rotazione assiale ${signed(rotation, 0)}°: oltre ±3°. Asimmetria dei capi mediali delle clavicole rispetto ai processi spinosi.`,
+    });
+  } else {
+    rotationPoints = 0.1;
+    positionFindings.push({
+      level: "error",
+      text: `Rotazione assiale ${signed(rotation, 0)}°: obliquità evidente. Il mediastino e la silhouette cardiaca non sono più frontali.`,
+    });
+  }
+
+  let shoulderPoints = 0.5;
+  if (geometry.beam === "LL") {
+    shoulderPoints = 0.3;
+    positionFindings.push({
+      level: "warn",
+      text: "In laterale il criterio delle scapole fuori dai campi polmonari del PA non è valutabile su questa incidenza.",
+    });
+  } else if (technique.shouldersRolledForward) {
+    positionFindings.push({
+      level: "ok",
+      text: "Spalle ruotate in avanti: le scapole si proiettano fuori dai campi polmonari.",
+    });
+  } else {
+    shoulderPoints = 0;
+    positionFindings.push({
+      level: "error",
+      text: "Spalle non ruotate in avanti: i margini mediali delle scapole si sovrappongono ai campi polmonari superiori.",
+    });
+  }
+
+  let markerPoints = 0.5;
+  if (technique.markerSide === "DX") {
+    positionFindings.push({
+      level: "ok",
+      text: "Marker radiopaco DX presente nel campo esposto: il lato anatomico è identificabile.",
+    });
+  } else if (technique.markerSide === "SX") {
+    markerPoints = 0.25;
+    positionFindings.push({
+      level: "warn",
+      text: "Marker SX presente. Il lato è marcato, ma sul frontale standard il reperto è DX.",
+    });
+  } else {
+    markerPoints = 0;
+    positionFindings.push({
+      level: "error",
+      text: "Marker anatomico assente: il radiogramma non identifica il lato del paziente (EUR 16260).",
+    });
   }
 
   const clipCount =
@@ -443,29 +586,29 @@ export function evaluateExam(
     collPoints = 0;
     positionFindings.push({
       level: "error",
-      text: "Collimazione troppo stretta: vengono tagliati più reperi obbligatori (apici, seni costofrenici o pareti laterali). L'esame non è centrato sul volume toracico.",
+      text: "Il campo esclude più reperi obbligatori (apici, seni costo-frenici o pareti laterali). EUR 16260 richiede l'inclusione completa.",
     });
   } else if (clipCount === 1) {
-    collPoints = 0.4;
+    collPoints = 0.35;
     const what = collimation.clipsApices
       ? "gli apici"
       : collimation.clipsBases
-        ? "i seni costofrenici"
+        ? "i seni costo-frenici"
         : "le pareti laterali";
     positionFindings.push({
       level: "error",
-      text: `Collimazione stretta: il fascio taglia ${what}. Sul torace PA vanno inclusi apici, seni costofrenici e profilo cutaneo laterale.`,
+      text: `Il fascio taglia ${what}. Sul torace PA vanno inclusi apici, seni costo-frenici e profilo cutaneo laterale.`,
     });
   } else if (wide) {
     collPoints = 0.9;
     positionFindings.push({
       level: "warn",
-      text: `Campo ${formatNum(technique.collW, 0)}×${formatNum(technique.collH, 0)} cm più ampio dell'anatomia (${formatNum(collimation.anatomyW, 0)}×${formatNum(collimation.anatomyH, 0)} cm). Nessun taglio, ma irradi di strutture extra-toraciche e alzi il DAP.`,
+      text: `Campo ${formatNum(technique.collW, 0)}×${formatNum(technique.collH, 0)} cm più ampio dell'anatomia (${formatNum(collimation.anatomyW, 0)}×${formatNum(collimation.anatomyH, 0)} cm). Nessun taglio, ma il DAP sale con l'area.`,
     });
   } else {
     positionFindings.push({
       level: "ok",
-      text: `Collimazione ${formatNum(technique.collW, 0)}×${formatNum(technique.collH, 0)} cm: apici, seni e pareti inclusi, senza un campo inutilmente aperto.`,
+      text: `Collimazione ${formatNum(technique.collW, 0)}×${formatNum(technique.collH, 0)} cm: apici e seni costo-frenici inclusi.`,
     });
   }
 
@@ -474,15 +617,24 @@ export function evaluateExam(
     title: "Posizionamento e Centraggio Anatomico",
     max: 8,
     score: clampScore(
-      projectionPoints + decubitusPoints + breathPoints + collPoints,
+      projectionPoints +
+        decubitusPoints +
+        breathPoints +
+        collPoints +
+        rotationPoints +
+        shoulderPoints +
+        markerPoints,
       8,
     ),
     findings: positionFindings,
     lines: [
-      { label: "Proiezione", points: round1(projectionPoints), max: 3 },
-      { label: "Decubito", points: round1(decubitusPoints), max: 1.5 },
-      { label: "Respiro", points: round1(breathPoints), max: 2 },
-      { label: "Collimazione", points: round1(collPoints), max: 1.5 },
+      { label: "Proiezione", points: round1(projectionPoints), max: 2 },
+      { label: "Decubito", points: round1(decubitusPoints), max: 1 },
+      { label: "Respiro", points: round1(breathPoints), max: 1.5 },
+      { label: "Inclusione del campo", points: round1(collPoints), max: 1.5 },
+      { label: "Simmetria ±3°", points: round1(rotationPoints), max: 1 },
+      { label: "Scapole", points: round1(shoulderPoints), max: 0.5 },
+      { label: "Marker", points: round1(markerPoints), max: 0.5 },
     ],
   };
 
@@ -584,7 +736,7 @@ export function evaluateExam(
   };
 
   const present = presentArtifacts(technique, analysis);
-  const justification = scoreJustification(review, present, faults);
+  const justification = scoreJustification(review, present, faults, rejected);
 
   const artifacts: ScoreSection = {
     id: "artifacts",
@@ -595,29 +747,366 @@ export function evaluateExam(
     lines: justification.lines,
   };
 
-  const sections = [image, positioning, dose, artifacts];
-  const total = round1(sections.reduce((sum, section) => sum + section.score, 0));
-  const verdict =
-    total >= 27
-      ? "OTTIMO"
-      : total >= 24
-        ? "BUONO"
-        : total >= 18
-          ? "SUFFICIENTE"
-          : total >= 12
-            ? "INSUFFICIENTE"
-            : "GRAVEMENTE INSUFFICIENTE";
-
-  const errors = sections.flatMap((section) =>
+  const official = officialItems(conduct, {
+    positioning,
+    dose,
+    artifacts,
+    kvpPoints: kvp.points,
+    gridPoints,
+    focalPoints,
+    kvpFindings: kvp.findings,
+    gridFindings,
+    imageFindings: image.findings,
+    cumulativeDap,
+    dap: dosimetry.dapDGyCm2,
+  });
+  const errors = official.sections.flatMap((section) =>
     section.findings.filter((finding) => finding.level === "error"),
   );
   const summary =
-    errors.length === 0
-      ? "Tecnica consegnabile per questo quesito didattico. L'addensamento basale destro resta visibile e la dose sta entro i DRL."
-      : `Errori principali: ${errors
-          .slice(0, 3)
-          .map((finding) => finding.text.replace(/\.$/, ""))
-          .join(" · ")}.`;
+    official.blocked
+      ? `Criticità bloccante. ${official.blocking[0] ?? "Esito non superato."}`
+      : errors.length === 0
+        ? "Percorso consegnabile per questo quesito. L'addensamento basale destro resta il reperto da riconoscere e la dose sta entro i DRL."
+        : `Errori principali: ${errors
+            .slice(0, 3)
+            .map((finding) => finding.text.replace(/\.$/, ""))
+            .join(" · ")}.`;
 
-  return { sections, total, max: 30, verdict, summary };
+  return {
+    sections: official.sections,
+    total: official.total,
+    max: 30,
+    verdict: official.band,
+    band: official.band,
+    blocked: official.blocked,
+    blocking: official.blocking,
+    summary,
+    geometryEvidence: buildGeometryEvidence(technique, analysis, rejected),
+  };
+}
+
+function officialItems(
+  conduct: ExamConduct,
+  parts: {
+    positioning: ScoreSection;
+    dose: ScoreSection;
+    artifacts: ScoreSection;
+    kvpPoints: number;
+    gridPoints: number;
+    focalPoints: number;
+    kvpFindings: Finding[];
+    gridFindings: Finding[];
+    imageFindings: Finding[];
+    cumulativeDap: number;
+    dap: number;
+  },
+): { sections: ScoreSection[]; total: number; band: string; blocked: boolean; blocking: string[] } {
+  const blocking: string[] = [];
+  const severeDrl = parts.dap > DRL_CHEST_PA.dapDGyCm2 * 2 || parts.cumulativeDap > DRL_CHEST_PA.dapDGyCm2 * 2;
+  if (conduct.mode === "exam") {
+    if (!conduct.modalityOk) blocking.push("Item A — metodica o distretto non riconosciuti.");
+    if (!conduct.identityConfirmed) blocking.push("Item B — identificazione attiva non eseguita.");
+    if (!conduct.pregnancyHandled) blocking.push("Item B — verifica delle controindicazioni non eseguita.");
+    if (conduct.deliveredWithMetal && !conduct.metalRecognized) {
+      blocking.push("Item B — corpo metallico radiopaco non rimosso e non riconosciuto sull'immagine.");
+    }
+    if (severeDrl) blocking.push("Item G — superamento grave del DRL.");
+  }
+
+  const itemA: ScoreSection = {
+    id: "A",
+    title: "Item A — Riconoscimento esame",
+    max: 3,
+    score: conduct.modalityOk ? 3 : 0,
+    findings: [
+      conduct.modalityOk
+        ? { level: "ok", text: "Metodica RX convenzionale e distretto torace coerenti con la richiesta RIS." }
+        : { level: "error", text: "Metodica o distretto non corrispondono alla richiesta. In esame è una criticità maggiore." },
+    ],
+    lines: [{ label: "Metodica e distretto", points: conduct.modalityOk ? 3 : 0, max: 3 }],
+  };
+
+  const identity = conduct.identityConfirmed ? 1 : 0;
+  const pregnancy = conduct.pregnancyHandled ? 1 : 0;
+  const metals = conduct.metalsCleared ? 1.5 : 0;
+  const voice = conduct.instructionGiven ? 0.5 : 0;
+  const itemB: ScoreSection = {
+    id: "B",
+    title: "Item B — Indicazioni, identificazione e preparazione",
+    max: 4,
+    score: clampScore(identity + pregnancy + metals + voice, 4),
+    findings: [
+      conduct.identityConfirmed
+        ? { level: "ok", text: "Identità confermata dal paziente sul braccialetto, a fronte della richiesta." }
+        : { level: "error", text: "Manca la conferma attiva di nome e data di nascita." },
+      conduct.pregnancyHandled
+        ? { level: "ok", text: "Controindicazioni verificate in modo coerente con l'anagrafica, senza test non indicati." }
+        : { level: "error", text: "Verifica di gravidanza o controindicazioni non eseguita." },
+      conduct.metalsCleared
+        ? { level: "ok", text: "Catenina e bottoni metallici rimossi prima dell'esposizione consegnata." }
+        : { level: "error", text: "Un oggetto metallico sul torace è rimasto nel campo dell'immagine consegnata." },
+    ],
+    lines: [
+      { label: "Identificazione attiva", points: identity, max: 1 },
+      { label: "Controindicazioni", points: pregnancy, max: 1 },
+      { label: "Rimozione metalli", points: metals, max: 1.5 },
+      { label: "Istruzione al paziente", points: voice, max: 0.5 },
+    ],
+  };
+
+  const itemC: ScoreSection = {
+    id: "C",
+    title: "Item C — Posizionamento, centratura e collimazione",
+    max: 6,
+    score: clampScore(parts.positioning.score * (6 / 8), 6),
+    findings: parts.positioning.findings,
+    lines: parts.positioning.lines.map((line) => ({
+      ...line,
+      points: round1(line.points * (6 / 8)),
+      max: round1(line.max * (6 / 8)),
+    })),
+  };
+
+  const dRaw = parts.kvpPoints + parts.gridPoints + Math.max(0, parts.focalPoints);
+  const itemD: ScoreSection = {
+    id: "D",
+    title: "Item D — Apparecchiature e parametri espositivi",
+    max: 5,
+    score: clampScore(dRaw * (5 / 6), 5),
+    findings: [...parts.kvpFindings, ...parts.gridFindings, ...parts.imageFindings.slice(0, 2)],
+    lines: [
+      { label: "kVp", points: round1(parts.kvpPoints * (5 / 6)), max: round1(3.5 * (5 / 6)) },
+      { label: "Griglia", points: round1(parts.gridPoints * (5 / 6)), max: round1(1.5 * (5 / 6)) },
+      { label: "Macchia focale", points: round1(Math.max(0, parts.focalPoints) * (5 / 6)), max: round1(5 / 6) },
+    ],
+  };
+
+  const itemE: ScoreSection = {
+    id: "E",
+    title: "Item E — Valutazione critica e Reject Analysis",
+    max: 4,
+    score: clampScore(parts.artifacts.score * (2 / 5) + (conduct.qualityCoherent ? 1 : 0.3) + (conduct.acceptable === true ? 1 : 0.4), 4),
+    findings: parts.artifacts.findings,
+    lines: [
+      { label: "Reject Analysis", points: round1(parts.artifacts.score * (2 / 5)), max: 2 },
+      { label: "Giudizio di qualità", points: conduct.qualityCoherent ? 1 : 0.3, max: 1 },
+      { label: "Accettabilità diagnostica", points: conduct.acceptable === true ? 1 : 0.4, max: 1 },
+    ],
+  };
+
+  const anatomy = Math.min(4, conduct.anatomyChecks) * 0.4;
+  const itemF: ScoreSection = {
+    id: "F",
+    title: "Item F — Anatomia radiologica",
+    max: 4,
+    score: clampScore(anatomy + (conduct.pathologyOk ? 2.4 : 0), 4),
+    findings: [
+      conduct.pathologyOk
+        ? { level: "ok", text: "Quadro riconosciuto: addensamento parenchimale lobare inferiore o medio destro." }
+        : { level: "error", text: "Il quadro patologico selezionato non corrisponde al quesito di polmonite lobare destra." },
+    ],
+    lines: [
+      { label: "Strutture verificate", points: round1(anatomy), max: 1.6 },
+      { label: "Quadro patologico", points: conduct.pathologyOk ? 2.4 : 0, max: 2.4 },
+    ],
+  };
+
+  const gDose = parts.dose.score * (2.2 / 7);
+  const gQuiz = conduct.quizOk ? 1 : 0;
+  const gShield = conduct.routineContactShield ? 0.15 : 0.5;
+  const itemG: ScoreSection = {
+    id: "G",
+    title: "Item G — Radioprotezione, sicurezza sala e invio PACS",
+    max: 4,
+    score: clampScore(gDose + gQuiz + gShield + 0.3, 4),
+    findings: [
+      ...parts.dose.findings.slice(0, 2),
+      conduct.quizOk
+        ? { level: "ok", text: "Quesito di radioprotezione corretto: la regola del 15% dimezza circa i mAs a parità di annerimento." }
+        : { level: "error", text: "Quesito di radioprotezione non corretto (D.Lgs. 101/2020, ottimizzazione)." },
+      conduct.routineContactShield
+        ? { level: "warn", text: "Schermatura a contatto sul campo, non indicata di routine sul torace secondo il consenso SIRM/AIFM/EFOMP." }
+        : { level: "ok", text: "Collimazione mirata, senza schermatura a contatto di routine." },
+      { level: "ok", text: "Erogazione solo a porta piombata chiusa. Immagine archiviata verso il PACS." },
+    ],
+    lines: [
+      { label: "Dose e DRL", points: round1(gDose), max: 2.2 },
+      { label: "Quesito D.Lgs. 101/2020", points: gQuiz, max: 1 },
+      { label: "Protezione del paziente", points: gShield, max: 0.5 },
+      { label: "Interlock e PACS", points: 0.3, max: 0.3 },
+    ],
+  };
+
+  const sections = [itemA, itemB, itemC, itemD, itemE, itemF, itemG];
+  const raw = round1(sections.reduce((sum, section) => sum + section.score, 0));
+  const blocked = blocking.length > 0;
+  const total = blocked ? Math.min(raw, 17) : raw;
+  return { sections, total, band: officialBand(total, blocked), blocked, blocking };
+}
+
+function officialBand(total: number, blocked: boolean): string {
+  if (blocked || total < 18) return "1–17 · Non superato";
+  if (total >= 29.5) return "30L · Eccellenza";
+  if (total >= 28) return "Fascia 28–30";
+  if (total >= 25) return "Fascia 25–27";
+  if (total >= 22) return "Fascia 22–24";
+  return "Fascia 18–21";
+}
+
+function aecFindings(technique: Technique): Finding[] {
+  if (technique.exposureMode !== "aec") return [];
+  const { left, center, right } = technique.aecChambers;
+  const laterals = left && right && !center;
+  const centerOnly = center && !left && !right;
+  if (laterals) {
+    return [
+      {
+        level: "ok",
+        text: "AEC sulle camere laterali DX e SX: la terminazione legge il parenchima, non il mediastino. È la selezione standard del torace PA.",
+      },
+    ];
+  }
+  if (centerOnly) {
+    return [
+      {
+        level: "error",
+        text: "AEC con la sola camera centrale: la soglia è raggiunta sul mediastino e la colonna, e i campi polmonari restano sovraesposti.",
+      },
+    ];
+  }
+  return [
+    {
+      level: "warn",
+      text: "Selezione AEC incompleta o mista. Sul torace PA le camere laterali, senza la centrale, sono la configurazione di riferimento.",
+    },
+  ];
+}
+
+function buildGeometryEvidence(
+  technique: Technique,
+  analysis: Analysis,
+  rejected: RejectedExposure[] = [],
+): GeometryEvidence[] {
+  const state = toRoomGeometry(technique);
+  const metrics = computeRoomMetrics(state);
+  const rows: GeometryEvidence[] = [];
+  const rotation = technique.patientRotationDeg;
+
+  rows.push({
+    cause: `Rotazione paziente ${signed(rotation, 0)}°`,
+    evidence:
+      Math.abs(rotation) <= 3
+        ? "Capi mediali delle clavicole simmetrici rispetto ai processi spinosi."
+        : "Asimmetria dei capi mediali delle clavicole rispetto ai processi spinosi.",
+  });
+  rows.push({
+    cause: technique.shouldersRolledForward
+      ? "Spalle ruotate in avanti"
+      : "Spalle non ruotate in avanti",
+    evidence: technique.shouldersRolledForward
+      ? "Scapole proiettate fuori dai campi polmonari."
+      : "Margini mediali delle scapole sovrapposti ai campi polmonari superiori.",
+  });
+  rows.push({
+    cause: `Centratura X ${signed(technique.centeringOffsetXCm, 1)} cm, Y ${signed(technique.centeringOffsetYCm, 1)} cm`,
+    evidence: analysis.collimation.clipsApices
+      ? "Apici polmonari tagliati dal bordo craniale del campo."
+      : analysis.collimation.clipsBases
+        ? "Seni costo-frenici tagliati dal bordo caudale del campo."
+        : analysis.collimation.clipsLateral
+          ? "Profilo laterale del torace fuori dal campo luminoso."
+          : "Apici e seni costo-frenici restano dentro il campo, con il torace traslato rispetto al centro del detettore.",
+  });
+  if (Math.abs(technique.tubeAngulationCCDeg) >= 2) {
+    rows.push({
+      cause: `Angolazione tubo CC ${signed(technique.tubeAngulationCCDeg, 0)}°`,
+      evidence:
+        technique.tubeAngulationCCDeg > 0
+          ? "Clavicole proiettate cranialmente rispetto agli apici (aspetto lordotico)."
+          : "Clavicole proiettate caudalmente sugli apici polmonari.",
+    });
+  } else {
+    rows.push({
+      cause: "Angolazione tubo CC 0°",
+      evidence: "Clavicole in rapporto fisiologico con gli apici, senza lordosi indotta dal tubo.",
+    });
+  }
+  if (metrics.gridCutoff.factor > 0.2) {
+    rows.push({
+      cause: metrics.gridCutoff.transverse
+        ? `Inclinazione ML ${signed(technique.tubeAngulationMLDeg, 0)}° con griglia inserita`
+        : `DFF ${formatNum(technique.dff, 0)} cm fuori fuoco della griglia`,
+      evidence: "Grid cutoff: bande chiare di attenuazione ai bordi del campo.",
+    });
+  } else if (technique.gridMode === "none") {
+    rows.push({
+      cause: "Griglia rimossa",
+      evidence: "Nessun grid cutoff. La radiazione diffusa non è ripulita dal Bucky.",
+    });
+  } else {
+    rows.push({
+      cause: `Griglia ${technique.gridMode === "focused_180" ? "focalizzata 180 cm" : "focalizzata 100 cm"} a fuoco`,
+      evidence: "Campo uniforme, senza attenuazione periferica da defocalizzazione.",
+    });
+  }
+  rows.push({
+    cause: `DI ${signed(analysis.dosimetry.di, 1)}`,
+    evidence:
+      analysis.dosimetry.di > 3
+        ? "Sovraesposizione / dose creep rispetto all'EI target (IEC 62494-1)."
+        : analysis.dosimetry.di < -3
+          ? "Sottoesposizione: rumore quantico sul detettore."
+          : analysis.dosimetry.di >= -1 && analysis.dosimetry.di <= 1
+            ? "Esposizione dentro la banda ottimale −1 … +1."
+            : "Esposizione fuori dalla banda ottimale, ancora lontana dalle soglie ±3.",
+  });
+  rows.push({
+    cause:
+      technique.kvp >= 110 && technique.kvp <= 125
+        ? `Alto voltaggio ${formatNum(technique.kvp, 0)} kVp`
+        : `kVp ${formatNum(technique.kvp, 0)}`,
+    evidence:
+      technique.kvp >= 110 && technique.kvp <= 125
+        ? "Coste ammorbidite: colonna dorsale, vasi retrocardiaci e parenchima restano leggibili."
+        : technique.kvp < 96
+          ? "Basso voltaggio: coste molto radiopache e mediastino poco penetrato."
+          : "Contrasto intermedio rispetto alla tecnica toracica ad alto voltaggio (110–125 kVp).",
+  });
+  if (technique.exposureMode === "aec") {
+    const { left, center, right } = technique.aecChambers;
+    const centerOnly = center && !left && !right;
+    rows.push({
+      cause: centerOnly
+        ? "AEC: sola camera centrale"
+        : `AEC: camere ${[right ? "DX" : "", center ? "C" : "", left ? "SX" : ""].filter(Boolean).join("+") || "nessuna"}`,
+      evidence: centerOnly
+        ? "Terminazione sul mediastino: mAs elevati e campi polmonari sovraesposti."
+        : left && right && !center
+          ? "Terminazione sulle camere polmonari laterali, fluenza vicina al target se la centratura è sul torace."
+          : "Selezione delle camere diversa dallo standard DX+SX del torace PA.",
+    });
+  } else {
+    rows.push({
+      cause: `mAs manuali ${formatNum(technique.mas, 1)}`,
+      evidence: "Nessuna terminazione automatica: il DI misura direttamente la scelta dei mAs.",
+    });
+  }
+  for (const item of rejected) {
+    const coherent = defectsOf(item.technique).includes(item.reason);
+    rows.push({
+      cause: `Scatto scartato · ${rejectLabel(item.reason)}`,
+      evidence: coherent
+        ? "Il motivo di rifiuto corrisponde a un difetto misurato su quell'esposizione."
+        : "Il motivo di rifiuto non corrisponde ai difetti misurati su quell'esposizione.",
+    });
+  }
+  rows.push({
+    cause: technique.markerSide === "none" ? "Marker assente" : `Marker ${technique.markerSide}`,
+    evidence:
+      technique.markerSide === "none"
+        ? "Lato anatomico non identificabile sull'immagine."
+        : `Marker radiopaco ${technique.markerSide} visibile nell'angolo del campo esposto.`,
+  });
+  return rows;
 }

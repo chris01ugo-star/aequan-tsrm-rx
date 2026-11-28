@@ -6,6 +6,7 @@ import {
   CircleHelp,
   Database,
   Folder,
+  GraduationCap,
   Home,
   Layers,
   Menu,
@@ -43,10 +44,14 @@ const NAV: { group: string; items: { id: DashView; label: string; icon: typeof H
 export function DashboardShell({
   active,
   onNavigate,
+  onGuide,
+  onTeacher,
   children,
 }: {
   active: DashView;
   onNavigate: (view: DashView) => void;
+  onGuide?: () => void;
+  onTeacher?: () => void;
   query?: string;
   onQuery?: (value: string) => void;
   showSearch?: boolean;
@@ -74,6 +79,11 @@ export function DashboardShell({
           <IconButton label="Supporto" onClick={() => setPopover(popover === "help" ? null : "help")}>
             <CircleHelp size={19} />
           </IconButton>
+          {onGuide ? (
+            <button type="button" onClick={onGuide} className="h-10 rounded-xl px-3 text-sm font-medium text-slate-500 hover:bg-[#f1f3f6] hover:text-[#2d4f7a]">
+              ? Guida
+            </button>
+          ) : null}
           <span className="mx-2 hidden h-8 w-px bg-[#e7eaef] sm:block" />
           <div className="flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-full bg-[#edf1f6] text-[13px] font-semibold text-[#2d4f7a]">
@@ -95,8 +105,8 @@ export function DashboardShell({
       </header>
 
       <div className="flex min-h-0 flex-1">
-        <aside className="hidden w-[248px] shrink-0 border-r border-[#e7eaef] bg-white px-3 py-6 lg:block">
-          <NavList active={active} onNavigate={onNavigate} />
+        <aside className="hidden h-full w-[248px] shrink-0 flex-col overflow-y-auto border-r border-[#e7eaef] bg-white px-3 py-6 lg:flex">
+          <NavList active={active} onNavigate={onNavigate} onTeacher={onTeacher} />
         </aside>
         <main className="min-w-0 flex-1 overflow-y-auto">{children}</main>
       </div>
@@ -110,12 +120,13 @@ export function DashboardShell({
         />
       ) : null}
       <aside
-        className={`fixed top-[72px] bottom-0 left-0 z-50 w-[260px] border-r border-[#e7eaef] bg-white px-4 py-6 transition-transform lg:hidden ${
+        className={`fixed top-[72px] bottom-0 left-0 z-50 flex w-[260px] flex-col border-r border-[#e7eaef] bg-white px-4 py-6 transition-transform lg:hidden ${
           menu ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <NavList
           active={active}
+          onTeacher={onTeacher}
           onNavigate={(view) => {
             setMenu(false);
             onNavigate(view);
@@ -162,7 +173,15 @@ function IconButton({ label, onClick, children }: { label: string; onClick: () =
   );
 }
 
-function NavList({ active, onNavigate }: { active: DashView; onNavigate: (view: DashView) => void }) {
+function NavList({
+  active,
+  onNavigate,
+  onTeacher,
+}: {
+  active: DashView;
+  onNavigate: (view: DashView) => void;
+  onTeacher?: () => void;
+}) {
   return (
     <nav className="flex flex-col gap-6">
       {NAV.map((section) => (
@@ -175,6 +194,19 @@ function NavList({ active, onNavigate }: { active: DashView; onNavigate: (view: 
           </div>
         </div>
       ))}
+      {onTeacher ? (
+        <div>
+          <p className="mb-1.5 px-3 text-[12px] font-medium text-slate-400">Area Docente</p>
+          <button
+            type="button"
+            onClick={onTeacher}
+            className="flex h-10 w-full items-center gap-3 rounded-xl px-3 text-left text-[14px] text-slate-600 hover:bg-[#f4f6f9] hover:text-[#2d4f7a]"
+          >
+            <GraduationCap size={17} strokeWidth={1.6} className="text-slate-400" />
+            Studio immagini
+          </button>
+        </div>
+      ) : null}
     </nav>
   );
 }

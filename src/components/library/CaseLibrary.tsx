@@ -5,7 +5,7 @@ import { useState } from "react";
 import { BriefingDialog } from "@/components/library/BriefingDialog";
 import { DrlDialog } from "@/components/library/DrlDialog";
 import { card, secondaryBtn } from "@/components/ui/buttons";
-import type { ClinicalCase } from "@/types/rx";
+import type { ClinicalCase, SimMode } from "@/types/rx";
 
 type Filter = "all" | "todo" | "done";
 
@@ -27,7 +27,7 @@ export function CaseLibrary({
   query?: string;
   completed: boolean;
   inProgress: boolean;
-  onStart: () => void;
+  onStart: (mode: SimMode) => void;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [briefing, setBriefing] = useState(false);

@@ -4,7 +4,16 @@ import {
   paintAttenuation,
   skinFractions,
 } from "@/lib/chestRenderer";
+import { renderDrr } from "@/lib/drrEngine";
+import { stampUnremovedMetal } from "@/lib/foreignMetal";
 import { clamp } from "@/lib/number";
+import {
+  anodeHeelAmplitude,
+  buckyFactor,
+  computeRoomMetrics,
+  toRoomGeometry,
+  type RoomMetrics,
+} from "@/lib/rxGeometry";
 import type {
   Analysis,
   BeamGeometry,
@@ -12,6 +21,7 @@ import type {
   Dosimetry,
   GeometryFactors,
   GrayWindow,
+  GridMode,
   ImageFault,
   LatentImage,
   Technique,
@@ -50,28 +60,60 @@ const KVP_DOSE_EXPONENT = 4.5;
 const REFERENCE_KVP = 120;
 const REFERENCE_MAS = 3;
 const REFERENCE_DFF = 180;
-const REFERENCE_EI = 280;
+/** EI_T del torace adulto secondo il modello IEC 62494-1 di questa sala. */
+export const EI_TARGET = 280;
+const REFERENCE_EI = EI_TARGET;
+const FINE_FOCUS_MA = 320;
+const BROAD_FOCUS_MA = 500;
 
 export function effectiveBeam(technique: Technique): BeamGeometry {
-  if (technique.projection === "LL") return "LL";
-  if (technique.decubitus === "SUPINO") return "AP";
-  return technique.projection;
+  return toRoomGeometry(technique).projection;
 }
 
-function magnification(dff: number, oidCm: number): number {
-  return dff / Math.max(28, dff - oidCm);
+function magnification(dff: number, oid: number): number {
+  return dff / Math.max(28, dff - oid);
 }
 
-export function computeGeometry(technique: Technique): GeometryFactors {
+function detectorGain(mode: GridMode): number {
+  if (mode === "none") return 2.15;
+  if (mode === "focused_100") return 1.15;
+  return 1;
+}
+
+/** DI = 10 · log10(EI / EI_T), IEC 62494-1. */
+export function deviationIndex(ei: number, target = EI_TARGET): number {
+  return 10 * Math.log10(Math.max(ei, 1) / target);
+}
+
+export function describeDeviationIndex(di: number): {
+  label: string;
+  tone: "ok" | "warn" | "alert";
+} {
+  if (di > 3) return { label: "Dose creep", tone: "alert" };
+  if (di < -3) return { label: "Sottoesposizione", tone: "alert" };
+  if (di >= -1 && di <= 1) return { label: "Ottimale", tone: "ok" };
+  if (di > 1) return { label: "Sopra banda", tone: "warn" };
+  return { label: "Sotto banda", tone: "warn" };
+}
+
+/** Tempo di posa a corrente realistica: 320 mA sul fuoco fine, 500 mA sul fuoco grosso. */
+export function exposureTimeMs(technique: Technique): number {
+  const milliampere = technique.focal === "FINE" ? FINE_FOCUS_MA : BROAD_FOCUS_MA;
+  return (technique.mas / milliampere) * 1000;
+}
+
+export function computeGeometry(
+  technique: Technique,
+  metrics: RoomMetrics = computeRoomMetrics(toRoomGeometry(technique)),
+): GeometryFactors {
   const beam = effectiveBeam(technique);
-  const oidHeart = beam === "AP" ? 19 : beam === "LL" ? 12 : 7.5;
-  const oidBody = beam === "AP" ? 11 : 4.5;
-  const heart = magnification(technique.dff, oidHeart) / magnification(180, 7.5);
-  const body = magnification(technique.dff, oidBody) / magnification(180, 4.5);
+  const heartOid = beam === "AP" ? metrics.oidCm + 8 : beam === "LL" ? metrics.oidCm + 2.5 : 7.5;
+  const heart = magnification(technique.dff, heartOid) / magnification(180, 7.5);
+  const body = metrics.magnification / magnification(180, 4.5);
   const near = Math.max(0, (155 - technique.dff) / 155);
-  const heartMag =
-    heart * (1 + near * 0.28) * (beam === "AP" ? 1.07 : 1);
-  const bodyMag = body * (1 + near * 0.1);
+  const rotationWiden = 1 + (Math.abs(technique.patientRotationDeg) / 30) * 0.06;
+  const heartMag = heart * (1 + near * 0.28) * (beam === "AP" ? 1.07 : 1);
+  const bodyMag = body * (1 + near * 0.1) * rotationWiden;
   const vert =
     technique.respiration === "INSP"
       ? 1
@@ -83,8 +125,24 @@ export function computeGeometry(technique: Technique): GeometryFactors {
     bodyMag,
     heartMag,
     vert,
-    focalMm: technique.focal === "GROSSA" ? 1.2 : 0.6,
+    focalMm: metrics.focalSpotMm,
     beam,
+    patientRotationDeg: technique.patientRotationDeg,
+    shouldersRolledForward: technique.shouldersRolledForward,
+    centeringOffsetXCm: technique.centeringOffsetXCm,
+    centeringOffsetYCm: technique.centeringOffsetYCm,
+    tubeAngulationCCDeg: technique.tubeAngulationCCDeg,
+    tubeAngulationMLDeg: technique.tubeAngulationMLDeg,
+    markerSide: technique.markerSide,
+    oidCm: metrics.oidCm,
+    magnification: metrics.magnification,
+    ugMm: metrics.ugMm,
+    gridCutoff: metrics.gridCutoff.factor,
+    gridCutoffAsymmetry: metrics.gridCutoff.asymmetry,
+    anodeHeel: metrics.anodeHeel,
+    exposureTimeMs: exposureTimeMs(technique),
+    collW: technique.collW,
+    collH: technique.collH,
   };
 }
 
@@ -92,7 +150,10 @@ export function subjectContrastMu(kvp: number): number {
   return 2.05 * Math.pow(REFERENCE_KVP / Math.max(50, kvp), 2.1);
 }
 
-export function computeDosimetry(technique: Technique): Dosimetry {
+export function computeDosimetry(
+  technique: Technique,
+  metrics: RoomMetrics = computeRoomMetrics(toRoomGeometry(technique)),
+): Dosimetry {
   const beam = effectiveBeam(technique);
   const kvpTerm = Math.pow(technique.kvp / 80, KVP_DOSE_EXPONENT);
   const distance = Math.pow(100 / technique.dff, 2);
@@ -103,7 +164,8 @@ export function computeDosimetry(technique: Technique): Dosimetry {
   const dapDGyCm2 = (airKermaMgy * areaCm2) / 100;
 
   const thickness = beam === "LL" ? 0.62 : 1;
-  const gridGain = technique.grid ? 1 : 2.15;
+  const gridGain = detectorGain(technique.gridMode) * (1 - 0.1 * metrics.gridCutoff.factor);
+  const scatterCleanup = technique.gridMode === "none" ? 2.4 : technique.gridMode === "focused_100" ? 1.12 : 1;
   const relativeExposure =
     (technique.mas / REFERENCE_MAS) *
     Math.pow(REFERENCE_DFF / technique.dff, 2) *
@@ -115,15 +177,23 @@ export function computeDosimetry(technique: Technique): Dosimetry {
   const quanta =
     (technique.mas / REFERENCE_MAS) *
     Math.pow(REFERENCE_DFF / technique.dff, 2) *
-    (technique.grid ? 1 : 2.4) *
+    scatterCleanup *
+    (1 - 0.15 * metrics.gridCutoff.factor) *
     Math.pow(technique.kvp / REFERENCE_KVP, 1.4) *
     thickness;
 
+  const ei = relativeExposure * REFERENCE_EI;
   return {
     airKermaMgy,
     esdMgy,
     dapDGyCm2,
-    ei: relativeExposure * REFERENCE_EI,
+    ei,
+    eiTarget: EI_TARGET,
+    di: deviationIndex(ei),
+    exposureTimeMs: exposureTimeMs(technique),
+    buckyFactor: buckyFactor(technique.gridMode),
+    gridCutoff: metrics.gridCutoff.factor,
+    anodeHeel: anodeHeelAmplitude(toRoomGeometry(technique)),
     relativeExposure,
     quanta,
     areaCm2,
@@ -134,19 +204,16 @@ export function computeDosimetry(technique: Technique): Dosimetry {
 export function assessCollimation(
   technique: Technique,
   geometry: GeometryFactors,
+  metrics: RoomMetrics = computeRoomMetrics(toRoomGeometry(technique)),
 ): CollimationAssessment {
   const skin = skinFractions(geometry);
-  const fieldLeft = (1 - technique.collW / RECEPTOR_CM) / 2;
-  const fieldTop = (1 - technique.collH / RECEPTOR_CM) / 2;
-  const fieldRight = 1 - fieldLeft;
-  const fieldBottom = 1 - fieldTop;
-  const tol = 0.006;
   const anatomyW = (skin.right - skin.left) * RECEPTOR_CM;
   const anatomyH = (skin.bottom - skin.top) * RECEPTOR_CM;
+  const field = metrics.field;
   return {
-    clipsApices: fieldTop > skin.top + tol,
-    clipsBases: fieldBottom < skin.bottom - tol,
-    clipsLateral: fieldLeft > skin.left + tol || fieldRight < skin.right - tol,
+    clipsApices: field.clipsApices,
+    clipsBases: field.clipsCostophrenic,
+    clipsLateral: field.clipsLateral,
     excessW: technique.collW - anatomyW,
     excessH: technique.collH - anatomyH,
     anatomyW,
@@ -154,25 +221,32 @@ export function assessCollimation(
   };
 }
 
-export function scatterFraction(technique: Technique): number {
-  if (technique.grid || technique.kvp <= 85) return 0;
+export function scatterFraction(technique: Technique, cutoff = 0): number {
+  if (technique.kvp <= 85) return technique.gridMode === "none" ? 0 : cutoff * 0.08;
+  if (technique.gridMode !== "none" && cutoff < 0.45) return cutoff * 0.12;
   const field = Math.min(1, (technique.collW * technique.collH) / (36 * 40));
+  const open = technique.gridMode === "none" ? 1 : 0.35 + cutoff * 0.65;
   const k = Math.min(1, (technique.kvp - 85) / 50);
-  return Math.min(0.62, 0.18 + k * 0.4 * (0.55 + 0.45 * field));
+  return Math.min(0.62, open * (0.18 + k * 0.4 * (0.55 + 0.45 * field)));
 }
 
+/**
+ * La sfocatura geometrica è applicata nel renderer a partire da Ug.
+ * Qui il raggio resta 0 per non sommare un secondo blur.
+ */
 export function penumbraRadiusPx(
   technique: Technique,
   geometry: GeometryFactors,
 ): number {
-  const near = Math.max(0, (165 - technique.dff) / 45);
-  const spot = geometry.focalMm >= 1 ? 1 : 0.15;
-  const ap = geometry.beam === "AP" ? 1.25 : 1;
-  return spot * near * 3.2 * ap;
+  const physicalMm = geometry.ugMm * (technique.focal === "GROSSA" ? 1 : 0.5);
+  return physicalMm < 0 ? 0 : 0;
 }
 
-function motionRadius(technique: Technique): number {
-  return technique.respiration === "LIBERO" ? 6.5 : 0;
+function motionRadius(technique: Technique, exposureMs: number): number {
+  if (technique.respiration !== "LIBERO") {
+    return exposureMs > 90 ? 1.5 : 0;
+  }
+  return clamp(1.8 + exposureMs / 6.5, 2.2, 14);
 }
 
 function motionWeight(y: number, height: number): number {
@@ -185,22 +259,22 @@ function motionWeight(y: number, height: number): number {
 function collectFaults(
   technique: Technique,
   dosimetry: Dosimetry,
+  geometry: GeometryFactors,
 ): ImageFault[] {
   const faults: ImageFault[] = [];
-  const { relativeExposure: rel, ei } = dosimetry;
-  if (rel < 0.58 || ei < 150) faults.push("noise");
-  if (rel < 0.5 || ei < 120) faults.push("underexposure");
-  if (rel > 2.35 || ei > 680) faults.push("burn");
+  const { relativeExposure: rel, ei, di } = dosimetry;
+  if (rel < 0.58 || ei < 150 || di < -3) faults.push("noise");
+  if (rel < 0.5 || ei < 120 || di < -3) faults.push("underexposure");
+  if (rel > 2.35 || ei > 680 || di > 3) faults.push("burn");
   if (technique.kvp < 96) faults.push("underpenetration");
   if (technique.kvp > 134) faults.push("flat");
-  if (!technique.grid && technique.kvp > 85) faults.push("scatter");
-  if (technique.respiration === "LIBERO") faults.push("motion");
-  if (technique.focal === "GROSSA" && technique.dff < 165) faults.push("penumbra");
+  if (technique.gridMode === "none" && technique.kvp > 85) faults.push("scatter");
+  if (technique.respiration === "LIBERO" || dosimetry.exposureTimeMs > 80) faults.push("motion");
+  if (geometry.ugMm > 0.18) faults.push("penumbra");
   return faults;
 }
 
 function collectWarnings(
-  technique: Technique,
   geometry: GeometryFactors,
   dosimetry: Dosimetry,
   collimation: CollimationAssessment,
@@ -218,87 +292,45 @@ function collectWarnings(
       text: "ESD sopra il DRL (0,30 mGy).",
     });
   }
-  if (dosimetry.ei > 680) {
+  const di = dosimetry.di;
+  if (di > 3) {
     warnings.push({
       level: "alert",
-      text: "Sovraesposizione: attesa bruciatura dei campi polmonari e allarme di dose.",
+      text: "DI > +3 (IEC 62494-1): fluenza al detettore compatibile con dose creep.",
     });
-  }
-  if (technique.kvp < 96) {
+  } else if (di < -3) {
     warnings.push({
-      level: "warn",
-      text: "kVp basso: contrasto elevato, penetrazione mediastinica e retrocardiaca insufficiente.",
+      level: "alert",
+      text: "DI < −3 (IEC 62494-1): fluenza insufficiente, atteso rumore quantico.",
     });
-  } else if (technique.kvp > 134) {
-    warnings.push({
-      level: "warn",
-      text: "kVp eccessivo: scala dei grigi compressa, immagine piatta.",
-    });
-  }
-  if (dosimetry.ei < 140) {
-    warnings.push({
-      level: "warn",
-      text: "mAs / fluenza bassi: sottoesposizione e rumore quantico sul detettore.",
-    });
-  }
-  if (!technique.grid && technique.kvp > 85) {
-    warnings.push({
-      level: "warn",
-      text: "Griglia rimossa sopra 85 kVp: velo grigio da radiazione diffusa, contrasto ridotto.",
-    });
-  }
-  if (technique.dff < 150 || geometry.beam === "AP") {
-    warnings.push({
-      level: "warn",
-      text:
-        geometry.beam === "AP"
-          ? "Geometria AP o DFF breve: ingrandimento della silhouette cardiaca e dose più alta."
-          : "DFF sotto 150 cm: ingrandimento geometrico del cuore e aumento della dose.",
-    });
-  }
-  if (technique.focal === "GROSSA" && technique.dff < 165) {
-    warnings.push({
-      level: "warn",
-      text: "Macchia focale grossa a DFF breve: penombra geometrica.",
-    });
-  }
-  if (technique.respiration === "LIBERO") {
-    warnings.push({
-      level: "warn",
-      text: "Respiro libero: blurring cinetico su diaframma e campi polmonari.",
-    });
-  }
-  if (technique.projection === "PA" && technique.decubitus === "SUPINO") {
-    warnings.push({
-      level: "warn",
-      text: "PA selezionata in clinostatismo: la geometria reale del fascio è una AP da tavolo.",
-    });
-  }
-  if (collimation.clipsApices || collimation.clipsBases) {
-    warnings.push({
-      level: "warn",
-      text: "Collimazione verticale stretta: rischio di taglio degli apici o dei seni costofrenici.",
-    });
-  } else if (collimation.clipsLateral) {
-    warnings.push({
-      level: "warn",
-      text: "Collimazione laterale stretta: parete toracica e marcatore a rischio di esclusione.",
-    });
-  } else if (collimation.excessW > 5.5 || collimation.excessH > 8) {
+  } else if (di > 1 || di < -1) {
     warnings.push({
       level: "info",
-      text: "Campo ampio: il DAP cresce con l'area irradiata senza guadagno diagnostico.",
+      text: "DI fuori dalla banda ottimale −1 … +1.",
+    });
+  }
+  if (geometry.gridCutoff > 0.2) {
+    warnings.push({
+      level: "warn",
+      text: "Non uniformità periferica del campo: attenuazione da griglia.",
+    });
+  }
+  if (collimation.clipsApices || collimation.clipsBases || collimation.clipsLateral) {
+    warnings.push({
+      level: "info",
+      text: "Il campo luminoso non copre l'intero volume toracico proiettato.",
     });
   }
   return warnings;
 }
 
 export function analyzeTechnique(technique: Technique): Analysis {
-  const geometry = computeGeometry(technique);
-  const dosimetry = computeDosimetry(technique);
-  const collimation = assessCollimation(technique, geometry);
-  const faults = collectFaults(technique, dosimetry);
-  const warnings = collectWarnings(technique, geometry, dosimetry, collimation);
+  const metrics = computeRoomMetrics(toRoomGeometry(technique));
+  const geometry = computeGeometry(technique, metrics);
+  const dosimetry = computeDosimetry(technique, metrics);
+  const collimation = assessCollimation(technique, geometry, metrics);
+  const faults = collectFaults(technique, dosimetry, geometry);
+  const warnings = collectWarnings(geometry, dosimetry, collimation);
   return { geometry, dosimetry, collimation, faults, warnings };
 }
 
@@ -312,9 +344,76 @@ export function sameTechnique(a: Technique, b: Technique): boolean {
     a.dff === b.dff &&
     a.focal === b.focal &&
     a.grid === b.grid &&
+    a.gridMode === b.gridMode &&
     a.collW === b.collW &&
-    a.collH === b.collH
+    a.collH === b.collH &&
+    a.patientRotationDeg === b.patientRotationDeg &&
+    a.shouldersRolledForward === b.shouldersRolledForward &&
+    a.centeringOffsetXCm === b.centeringOffsetXCm &&
+    a.centeringOffsetYCm === b.centeringOffsetYCm &&
+    a.tubeAngulationCCDeg === b.tubeAngulationCCDeg &&
+    a.tubeAngulationMLDeg === b.tubeAngulationMLDeg &&
+    a.markerSide === b.markerSide &&
+    a.exposureMode === b.exposureMode &&
+    a.aecDensityStep === b.aecDensityStep &&
+    a.aecChambers.left === b.aecChambers.left &&
+    a.aecChambers.center === b.aecChambers.center &&
+    a.aecChambers.right === b.aecChambers.right
   );
+}
+
+export function aecChambersSelected(technique: Technique): boolean {
+  const chambers = technique.aecChambers;
+  return Boolean(chambers?.left || chambers?.center || chambers?.right);
+}
+
+/** True quando l'AEC è armato ma nessuna camera è selezionata. */
+export function aecBlocksExposure(technique: Technique): boolean {
+  return technique.exposureMode === "aec" && !aecChambersSelected(technique);
+}
+
+/**
+ * mAs a cui l'AEC termina. Le camere laterali sul polmone chiudono vicino al DI 0.
+ * La sola camera centrale, sul mediastino, lascia erogare molta più fluenza.
+ */
+export function terminatedMas(technique: Technique): number {
+  const metrics = computeRoomMetrics(toRoomGeometry(technique));
+  const beam = effectiveBeam(technique);
+  const gridGain = detectorGain(technique.gridMode) * (1 - 0.1 * metrics.gridCutoff.factor);
+  const thickness = beam === "LL" ? 0.62 : 1;
+  const ap = beam === "AP" ? 1.08 : 1;
+  const distance = Math.pow(REFERENCE_DFF / technique.dff, 2);
+  const kvpTerm = Math.pow(technique.kvp / REFERENCE_KVP, 1.15);
+  const scale = distance * gridGain * kvpTerm * thickness * ap;
+  const density = 1.25 ** technique.aecDensityStep;
+  const mas = (density * chamberLoad(technique) * REFERENCE_MAS) / Math.max(scale, 0.05);
+  return Math.round(Math.min(80, Math.max(0.5, mas)) * 10) / 10;
+}
+
+function chamberLoad(technique: Technique): number {
+  const { left, center, right } = technique.aecChambers;
+  const shift = technique.centeringOffsetXCm;
+  const loads: number[] = [];
+  const lung = (side: number) => {
+    const towardMidline = shift * side;
+    if (towardMidline > 8) return 2.4;
+    if (towardMidline < -8) return 0.42;
+    const miss = Math.abs(shift);
+    if (miss < 3.5) return 1;
+    if (miss < 7) return 1.45;
+    return 1.8;
+  };
+  if (right) loads.push(lung(-1));
+  if (left) loads.push(lung(1));
+  if (center) loads.push(Math.abs(shift) < 6 ? 3.45 : 2.15);
+  if (loads.length === 0) return 1;
+  return loads.reduce((sum, value) => sum + value, 0) / loads.length;
+}
+
+/** Tecnica realmente erogata. In AEC sostituisce i mAs con la terminazione delle camere. */
+export function techniqueForExposure(technique: Technique): Technique {
+  if (technique.exposureMode !== "aec") return technique;
+  return { ...technique, mas: terminatedMas(technique) };
 }
 
 function mulberry32(seed: number): () => number {
@@ -398,9 +497,10 @@ function attenuationToMono2(
   kvp: number,
   rng: () => number,
 ): number {
-  let signal = rel * Math.exp(-att * mu);
+  const primary = Math.exp(-att * mu);
+  let signal = primary;
   if (scatter > 0) {
-    signal = signal * (1 - scatter * 0.55) + rel * scatter * 0.28;
+    signal = signal * (1 - scatter * 0.55) + scatter * 0.28;
   }
   const sigma =
     (0.075 / Math.sqrt(Math.max(quanta, 0.06))) * Math.sqrt(Math.max(signal, 0.02));
@@ -420,14 +520,33 @@ function attenuationToMono2(
     const fog = Math.min(0.55, scatter * 0.8);
     mono = mono * (1 - fog) + 2140 * fog;
   }
-  if (rel > 2.5 && att < 0.32) {
-    mono *= Math.max(0.08, 1 - (rel - 2.5) * 0.42);
+  if (rel > 4) {
+    const wash = Math.min(0.38, (rel - 4) / 26);
+    mono = mono * (1 - wash) + 2050 * wash;
   }
   return clamp(mono, 0, 4095);
 }
 
-export function renderLatent(technique: Technique, seed: number): LatentImage {
+export function renderLatent(technique: Technique, seed: number, unremovedMetalArtifact = false): LatentImage {
   const analysis = analyzeTechnique(technique);
+  try {
+    const drr = renderDrr(
+      technique,
+      seed,
+      {
+        fluence: analysis.dosimetry.relativeExposure,
+        exposureTimeMs: analysis.dosimetry.exposureTimeMs,
+        ugMm: analysis.geometry.ugMm,
+        gridCutoff: analysis.geometry.gridCutoff,
+        gridAsymmetry: analysis.geometry.gridCutoffAsymmetry,
+        anodeHeel: analysis.geometry.anodeHeel,
+      },
+      unremovedMetalArtifact,
+    );
+    if (drr) return drr;
+  } catch {
+    // WebGL2 assente o shader non linkato: resta il torace procedurale.
+  }
   const width = LATENT_WIDTH;
   const height = LATENT_HEIGHT;
   const canvas = document.createElement("canvas");
@@ -451,7 +570,7 @@ export function renderLatent(technique: Technique, seed: number): LatentImage {
       ? boxBlur(attenuation, width, height, penumbra, false, null)
       : attenuation;
 
-  const motion = motionRadius(technique);
+  const motion = motionRadius(technique, analysis.dosimetry.exposureTimeMs);
   if (motion > 0) {
     working = boxBlur(working, width, height, motion, true, (y) =>
       motionWeight(y, height),
@@ -462,7 +581,7 @@ export function renderLatent(technique: Technique, seed: number): LatentImage {
   const shutter = new Uint8Array(width * height);
   const rng = mulberry32(seed >>> 0 || 1);
   const mu = subjectContrastMu(technique.kvp);
-  const scatter = scatterFraction(technique);
+  const scatter = scatterFraction(technique, analysis.geometry.gridCutoff);
   const { relativeExposure, quanta } = analysis.dosimetry;
   const fieldLeft = Math.round(((1 - technique.collW / RECEPTOR_CM) / 2) * width);
   const fieldTop = Math.round(((1 - technique.collH / RECEPTOR_CM) / 2) * height);
@@ -491,6 +610,7 @@ export function renderLatent(technique: Technique, seed: number): LatentImage {
     }
   }
 
+  if (unremovedMetalArtifact) stampUnremovedMetal(pixels, shutter, width, height);
   return { width, height, pixels, shutter };
 }
 
