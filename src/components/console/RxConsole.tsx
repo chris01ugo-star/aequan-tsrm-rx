@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { AnalyticsView, ArchiveView } from "@/components/phases/LibraryViews";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { ArchiveView, CaseBankView, ReportHub, SettingsView } from "@/components/phases/LibraryViews";
 import { BriefingDialog } from "@/components/library/BriefingDialog";
 import { CaseLibrary } from "@/components/library/CaseLibrary";
 import { ReportView } from "@/components/report/ReportView";
 import { DashboardShell, type DashView } from "@/components/shell/DashboardShell";
 import { ReviewDialog } from "@/components/sim/ReviewDialog";
 import { SimulationScreen } from "@/components/sim/SimulationScreen";
+import { TirocinioView } from "@/components/valutazione/TirocinioView";
 import { CASES, DEFAULT_TECHNIQUE, getCase } from "@/data/cases";
 import { evaluateExam } from "@/lib/evaluation";
 import { formatClock } from "@/lib/number";
@@ -43,8 +44,7 @@ type Report = {
 export function RxConsole() {
   const clinical = getCase(CASES[0].id);
   const [screen, setScreen] = useState<Screen>("dashboard");
-  const [dash, setDash] = useState<DashView>("library");
-  const [collapsed, setCollapsed] = useState(true);
+  const [dash, setDash] = useState<DashView>("dashboard");
   const [query, setQuery] = useState("");
   const [briefingOverSim, setBriefingOverSim] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -195,8 +195,25 @@ export function RxConsole() {
     },
   };
 
+  function leaveTo(view: DashView) {
+    setDash(view);
+    setScreen("dashboard");
+  }
+
+  const shell = (node: ReactNode) => (
+    <DashboardShell
+      active={screen === "simulation" ? "library" : screen === "report" ? "report" : dash}
+      onNavigate={leaveTo}
+      query={query}
+      onQuery={setQuery}
+      showSearch={dash === "library" && screen === "dashboard"}
+    >
+      {node}
+    </DashboardShell>
+  );
+
   if (screen === "simulation") {
-    return (
+    return shell(
       <>
         <SimulationScreen
           clinical={clinical}
@@ -237,12 +254,12 @@ export function RxConsole() {
             {...viewProps}
           />
         ) : null}
-      </>
+      </>,
     );
   }
 
   if (screen === "report" && report) {
-    return (
+    return shell(
       <ReportView
         evaluation={report.evaluation}
         shot={report.shot}
@@ -259,25 +276,21 @@ export function RxConsole() {
           setProgressCase(clinical.id);
           setScreen("simulation");
         }}
-      />
+      />,
     );
   }
 
-  return (
-    <DashboardShell
-      collapsed={collapsed}
-      onToggle={() => setCollapsed((value) => !value)}
-      active={dash}
-      onNavigate={setDash}
-      onNewSession={() => {
-        resetExam();
-        setProgressCase("");
-        setDash("library");
-        setScreen("dashboard");
-      }}
-      query={query}
-      onQuery={setQuery}
-    >
+  return shell(
+    <>
+      {dash === "dashboard" ? (
+        <TirocinioView
+          onStartPractical={() => {
+            resetExam();
+            setProgressCase(clinical.id);
+            setScreen("simulation");
+          }}
+        />
+      ) : null}
       {dash === "library" ? (
         <CaseLibrary
           clinical={clinical}
@@ -292,7 +305,18 @@ export function RxConsole() {
         />
       ) : null}
       {dash === "archive" ? <ArchiveView sessions={sessions} /> : null}
-      {dash === "analytics" ? <AnalyticsView /> : null}
-    </DashboardShell>
+      {dash === "report" ? (
+        <ReportHub
+          sessions={sessions}
+          onOpenPractical={() => {
+            resetExam();
+            setProgressCase(clinical.id);
+            setScreen("simulation");
+          }}
+        />
+      ) : null}
+      {dash === "bank" ? <CaseBankView /> : null}
+      {dash === "settings" ? <SettingsView /> : null}
+    </>,
   );
 }

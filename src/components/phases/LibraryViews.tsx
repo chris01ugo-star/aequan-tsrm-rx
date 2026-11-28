@@ -1,31 +1,34 @@
+"use client";
+
 import { formatNum } from "@/lib/number";
-import type { SavedSession } from "@/lib/sessionStore";
+import { saveSessions, setProgressCase, type SavedSession } from "@/lib/sessionStore";
+import { primaryBtn } from "@/components/ui/buttons";
 
 export function ArchiveView({ sessions }: { sessions: SavedSession[] }) {
   return (
-    <div className="mx-auto max-w-7xl px-6 py-6 md:px-8">
-      <h2 className="font-display text-2xl font-bold tracking-tight text-[#F8FAFC]">Archivio sessioni</h2>
-      <p className="mt-1 max-w-2xl text-[13px] text-muted">
-        Le simulazioni concluse restano su questo browser, senza nomi reali. Ogni scheda riporta
-        voto, scatti, dose cumulativa e data.
+    <div className="mx-auto max-w-6xl px-3 py-5 sm:px-6 sm:py-6">
+      <h2 className="font-display text-2xl font-bold tracking-tight text-[#16304f]">Archivio sessioni</h2>
+      <p className="mt-1 max-w-2xl text-sm text-slate-500">
+        Le simulazioni concluse restano su questo browser, senza nomi reali. Ogni scheda riporta voto, scatti, dose e orario.
       </p>
       {sessions.length === 0 ? (
-        <p className="mt-6 border border-line bg-panel px-4 py-6 text-[13px] text-muted">
-          Nessuna simulazione conclusa. Completa il debriefing per salvarla in locale.
+        <p className="mt-6 rounded-3xl border border-dashed border-slate-200 bg-white px-4 py-8 text-sm text-slate-500">
+          Nessuna simulazione conclusa. Completa review e debriefing per salvarla in locale.
         </p>
       ) : (
-        <ul className="mt-4 divide-y divide-line border border-line bg-panel">
+        <ul className="mt-4 grid gap-3">
           {sessions.map((session) => (
-            <li key={session.id} className="grid grid-cols-[1.4fr_0.6fr_0.5fr_0.9fr_1fr] gap-2 px-3 py-2 text-[13px]">
-              <span className="text-ice">{session.caseTitle}</span>
-              <span className="font-mono tabular-nums text-cyan-clin">
+            <li
+              key={session.id}
+              className="grid gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-sm sm:grid-cols-[1.4fr_0.6fr_0.6fr_0.9fr_0.8fr] sm:items-center"
+            >
+              <span className="font-semibold text-[#16304f]">{session.caseTitle}</span>
+              <span className="tabular-nums text-[#1e3a5f]">
                 {formatNum(session.score, 1)} / {session.max}
               </span>
-              <span className="font-mono tabular-nums text-ice">{session.shots} scatti</span>
-              <span className="font-mono tabular-nums text-ice">
-                {formatNum(session.cumulativeDap, 2)} dGy·cm²
-              </span>
-              <span className="font-mono text-[12px] text-muted">{session.savedAt}</span>
+              <span className="tabular-nums text-slate-600">{session.shots} scatti</span>
+              <span className="tabular-nums text-slate-600">{formatNum(session.cumulativeDap, 2)} dGy·cm²</span>
+              <span className="text-xs text-slate-400">{session.savedAt}</span>
             </li>
           ))}
         </ul>
@@ -38,7 +41,7 @@ const BANK = [
   {
     id: "RX-01",
     title: "Caso 01 — Torace PA",
-    detail: "Sospetta polmonite lobare destra. Scenario attivo del pilota.",
+    detail: "Sospetta polmonite lobare destra. Scenario eseguibile del pilota.",
     status: "Attivo",
     ready: true,
   },
@@ -46,32 +49,32 @@ const BANK = [
     id: "RX-02",
     title: "Caso 02 — Ginocchio / Trauma",
     detail: "Incidenze ortogonali e criteri di collimazione articolare.",
-    status: "In preparazione — Livello 1",
+    status: "In preparazione",
     ready: false,
   },
   {
     id: "RX-03",
     title: "Caso 03 — Addome diretto",
-    detail: "Addome in bianco, livelli idroaerei e radioprotezione gonadica.",
-    status: "In preparazione — Livello 1",
+    detail: "Addome in bianco, livelli idroaerei e radioprotezione.",
+    status: "In preparazione",
     ready: false,
   },
 ];
 
 export function CaseBankView() {
   return (
-    <div className="mx-auto max-w-7xl px-6 py-6 md:px-8">
-      <h2 className="font-display text-2xl font-bold tracking-tight text-[#F8FAFC]">Banca dati casi</h2>
-      <p className="mt-1 max-w-2xl text-[13px] text-muted">
-        Pilota RX tradizionale. Solo il torace è eseguibile in questa versione.
+    <div className="mx-auto max-w-6xl px-3 py-5 sm:px-6 sm:py-6">
+      <h2 className="font-display text-2xl font-bold tracking-tight text-[#16304f]">Banca dati casi</h2>
+      <p className="mt-1 max-w-2xl text-sm text-slate-500">
+        Pilota di radiologia tradizionale. In questa versione si esegue il torace PA.
       </p>
       <ul className="mt-4 grid gap-3 md:grid-cols-3">
         {BANK.map((item) => (
-          <li key={item.id} className="border border-line bg-panel p-3">
-            <p className="font-mono text-[10px] tracking-[0.14em] text-cyan-clin">{item.id}</p>
-            <h3 className="mt-1 font-display text-[16px] text-ice">{item.title}</h3>
-            <p className="mt-2 text-[13px] leading-relaxed text-muted">{item.detail}</p>
-            <p className={`mt-3 text-[12px] ${item.ready ? "text-ok" : "text-amber-rx"}`}>
+          <li key={item.id} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-[11px] font-semibold tracking-[0.14em] text-[#1d4f91] uppercase">{item.id}</p>
+            <h3 className="mt-1 font-display text-lg font-bold text-[#16304f]">{item.title}</h3>
+            <p className="mt-2 text-sm leading-relaxed text-slate-500">{item.detail}</p>
+            <p className={`mt-3 text-xs font-semibold ${item.ready ? "text-emerald-600" : "text-amber-600"}`}>
               {item.status}
             </p>
           </li>
@@ -81,27 +84,86 @@ export function CaseBankView() {
   );
 }
 
-export function AnalyticsView() {
+export function ReportHub({
+  sessions,
+  onOpenPractical,
+}: {
+  sessions: SavedSession[];
+  onOpenPractical: () => void;
+}) {
+  const latest = sessions[0];
+  const average =
+    sessions.length === 0 ? 0 : sessions.reduce((sum, item) => sum + item.score, 0) / sessions.length;
   return (
-    <div className="mx-auto max-w-7xl px-6 py-6 md:px-8">
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 className="font-display text-[20px] text-ice">Analytics Aula</h2>
-        <span className="border border-[#345884] px-2 py-0.5 text-[10px] tracking-[0.12em] text-cyan-clin">
-          Disponibile in Livello 2
-        </span>
-      </div>
-      <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-muted">
-        Vista docente in anteprima. Al Livello 2 raccoglierà, in forma aggregata e pseudonimizzata,
-        distribuzione dei voti, scatti medi e superamenti del DRL.
+    <div className="mx-auto max-w-6xl px-3 py-5 sm:px-6 sm:py-6">
+      <h2 className="font-display text-2xl font-bold tracking-tight text-[#16304f]">Report</h2>
+      <p className="mt-1 max-w-2xl text-sm text-slate-500">
+        Sintesi delle sessioni salvate su questo browser. Il referto completo compare al termine della review.
       </p>
-      <div className="mt-4 grid gap-3 md:grid-cols-3">
-        {["Voto medio d'aula", "Scatti medi per esame", "Sessioni sopra DRL"].map((label) => (
-          <article key={label} className="border border-dashed border-line bg-panel px-3 py-4">
-            <p className="text-[12px] text-muted">{label}</p>
-            <p className="mt-2 font-mono text-[22px] text-line">—</p>
-          </article>
-        ))}
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <Stat label="Sessioni" value={String(sessions.length)} />
+        <Stat label="Voto medio" value={sessions.length ? formatNum(average, 1) : "—"} />
+        <Stat label="Ultimo DAP" value={latest ? `${formatNum(latest.cumulativeDap, 2)}` : "—"} />
       </div>
+      {latest ? (
+        <article className="mt-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">Ultima sessione</p>
+          <h3 className="mt-1 font-display text-xl font-bold">{latest.caseTitle}</h3>
+          <p className="mt-2 font-display text-4xl font-bold tabular-nums text-[#16304f]">
+            {formatNum(latest.score, 1)}
+            <span className="text-xl text-slate-400"> / {latest.max}</span>
+          </p>
+          <p className="mt-1 text-sm text-slate-500">
+            {latest.shots} scatti · {formatNum(latest.cumulativeDap, 2)} dGy·cm² · {latest.savedAt}
+          </p>
+        </article>
+      ) : (
+        <article className="mt-4 rounded-3xl border border-dashed border-slate-200 bg-white p-6 text-sm text-slate-500">
+          Nessun report ancora. Avvia lo scenario del torace e consegna la review.
+          <button type="button" onClick={onOpenPractical} className={`${primaryBtn} mt-4`}>
+            Apri simulazione
+          </button>
+        </article>
+      )}
     </div>
   );
+}
+
+export function SettingsView() {
+  return (
+    <div className="mx-auto max-w-3xl px-3 py-5 sm:px-6 sm:py-6">
+      <h2 className="font-display text-2xl font-bold tracking-tight text-[#16304f]">Impostazioni</h2>
+      <p className="mt-1 text-sm leading-relaxed text-slate-500">
+        AEQUAN Imaging & Clinical Simulation è un ambiente universitario. I dati di sessione e del quiz restano nel browser, senza account clinico.
+      </p>
+      <article className="mt-4 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 className="font-semibold">Dati locali</h3>
+        <p className="mt-1 text-sm text-slate-500">Cancella archivio sessioni e avanzamento del caso in corso.</p>
+        <button
+          type="button"
+          className={`${primaryBtn} mt-4`}
+          onClick={() => {
+            saveSessions([]);
+            setProgressCase("");
+            window.localStorage.removeItem("aequan.tsrm.quiz.v1");
+          }}
+        >
+          Azzera dati di questo browser
+        </button>
+      </article>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <article className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-xs font-medium text-slate-500">{label}</p>
+      <p className="mt-1 font-display text-2xl font-bold tabular-nums text-[#16304f]">{value}</p>
+    </article>
+  );
+}
+
+export function AnalyticsView() {
+  return <ReportHub sessions={[]} onOpenPractical={() => undefined} />;
 }

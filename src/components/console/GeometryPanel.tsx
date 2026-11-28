@@ -106,8 +106,8 @@ function Segment<T extends string>({
                 index > 0 ? "ml-1" : ""
               } ${
                 active
-                  ? "border-[#F8FAFC] bg-[#F8FAFC] text-[#1E324E]"
-                  : "border-[#2A486D] bg-[#111D30] text-[#F8FAFC] hover:border-[#345884]"
+                  ? "border-sky-200 bg-sky-50 text-[#1e3a5f]"
+                  : "border-slate-200 bg-white text-slate-500 hover:border-sky-200"
               }`}
             >
               {option.label}
@@ -178,7 +178,7 @@ function ErectView({
 
   return (
     <g>
-      <rect width="360" height="188" fill="#0C1526" />
+      <rect width="360" height="188" fill="#f8fafc" />
       <line x1="8" y1="164" x2="352" y2="164" stroke="#94A3B8" />
       <line x1="8" y1="18" x2="8" y2="164" stroke="#94A3B8" />
       <polygon
@@ -247,7 +247,7 @@ function SupineView({ dff, collH }: { dff: number; collH: number }) {
 
   return (
     <g>
-      <rect width="360" height="188" fill="#0C1526" />
+      <rect width="360" height="188" fill="#f8fafc" />
       <polygon
         points={`${focalX},${focalY} ${x1},${tableY} ${x2},${tableY}`}
         fill="rgba(107,163,222,0.13)"
@@ -290,7 +290,7 @@ function AxialView({
 
   return (
     <g>
-      <rect width="360" height="78" fill="#0C1526" />
+      <rect width="360" height="78" fill="#f8fafc" />
       <polygon
         points={`${focalX},${midY} ${detX},${y1} ${detX},${y2}`}
         fill="rgba(107,163,222,0.12)"

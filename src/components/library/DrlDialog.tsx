@@ -6,12 +6,12 @@ import { formatNum } from "@/lib/number";
 
 export function DrlDialog({ onClose }: { onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#0B1320]/75 p-4">
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-[#0f2744]/40 p-3 sm:items-center">
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="drl-title"
-        className="w-full max-w-lg rounded-2xl border border-[#2A486D] bg-[#16253B] p-5"
+        className="w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-5 text-[#0f2744]"
       >
         <div className="flex items-start justify-between gap-3">
           <h2 id="drl-title" className="font-display text-lg font-bold tracking-tight">
@@ -21,7 +21,7 @@ export function DrlDialog({ onClose }: { onClose: () => void }) {
             Chiudi
           </button>
         </div>
-        <p className="mt-2 text-sm leading-relaxed text-[#9FB3C8]">
+        <p className="mt-2 text-sm leading-relaxed text-slate-500">
           Livelli diagnostici di riferimento del torace PA adulto usati dal modello didattico. Non sono
           una misura di un tubo reale.
         </p>
@@ -30,7 +30,7 @@ export function DrlDialog({ onClose }: { onClose: () => void }) {
           <Cell k="ESD" v={`${formatNum(DRL_CHEST_PA.esdMgy, 2)} mGy`} />
           <Cell k="EI" v={`${DRL_CHEST_PA.eiMin}–${DRL_CHEST_PA.eiMax}`} />
         </dl>
-        <ul className="mt-4 space-y-2 text-sm text-[#F8FAFC]">
+        <ul className="mt-4 space-y-2 text-sm text-[#0f2744]">
           <li>ALARA: la dose minima che risponde ancora al quesito, non la dose più bassa in assoluto.</li>
           <li>Qualità proiettiva: PA, ortostatismo, apnea inspiratoria, DFF 180 cm, griglia 12:1, fuoco fine.</li>
         </ul>
@@ -41,9 +41,9 @@ export function DrlDialog({ onClose }: { onClose: () => void }) {
 
 function Cell({ k, v }: { k: string; v: string }) {
   return (
-    <div className="rounded-xl bg-[#111D30] px-2 py-2">
-      <div className="text-[10px] tracking-[0.12em] text-[#9FB3C8]">{k}</div>
-      <div className="text-[#F8FAFC]">{v}</div>
+    <div className="rounded-xl bg-slate-50 px-2 py-2">
+      <div className="text-[10px] tracking-[0.12em] text-slate-500">{k}</div>
+      <div className="text-[#0f2744]">{v}</div>
     </div>
   );
 }

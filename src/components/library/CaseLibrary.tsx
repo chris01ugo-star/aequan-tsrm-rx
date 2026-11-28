@@ -77,16 +77,16 @@ export function CaseLibrary({
     (filter === "todo" && !completed && !(inProgress && !completed));
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-5 px-6 py-6 md:px-8">
+    <div className="mx-auto flex max-w-6xl flex-col gap-5 px-3 py-5 sm:px-6 sm:py-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-[11px] font-semibold tracking-[0.14em] text-[#6BA3DE] uppercase">
-            Libreria casi TSRM
+          <p className="text-[11px] font-semibold tracking-[0.14em] text-[#1d4f91] uppercase">
+            Scenari clinici
           </p>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-[#F8FAFC] md:text-[28px]">
-            {mode === "cases" ? "Radiologia tradizionale" : "Modalità del pilota"}
+          <h1 className="font-display text-2xl font-bold tracking-tight text-[#16304f] md:text-[28px]">
+            {mode === "cases" ? "Radiologia tradizionale" : "Scegli la modalità"}
           </h1>
-          <p className="mt-1 max-w-[576px] text-sm leading-relaxed text-[#9FB3C8]">
+          <p className="mt-1 max-w-[576px] text-sm leading-relaxed text-slate-500">
             Scegli la modalità, poi il caso. Il briefing clinico si apre prima della sala: i parametri
             tecnici restano da calibrare.
           </p>
@@ -96,10 +96,10 @@ export function CaseLibrary({
                 key={item.id}
                 type="button"
                 onClick={() => setFilter(item.id)}
-                className={`rounded-lg px-[10px] py-1 text-[11px] font-medium ${
+                className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
                   filter === item.id
-                    ? "bg-[#F8FAFC] text-[#1E324E]"
-                    : "border border-[#2A486D] bg-[#16253B] text-[#F8FAFC]"
+                    ? "bg-[#1e3a5f] text-white"
+                    : "border border-slate-200 bg-white text-slate-500"
                 }`}
               >
                 {item.label}
@@ -107,21 +107,21 @@ export function CaseLibrary({
             ))}
           </div>
         </div>
-        <button type="button" onClick={() => setDrl(true)} className="text-sm font-medium text-[#6BA3DE] hover:text-[#F8FAFC]">
+        <button type="button" onClick={() => setDrl(true)} className="text-sm font-semibold text-[#1d4f91] hover:text-[#16304f]">
           Linee guida & DRL
         </button>
       </header>
 
       {mode === "modalities" ? (
-        <div className="rounded-2xl border border-[#2A486D] bg-[#16253B] px-4 py-3">
-          <p className="text-[11px] font-semibold tracking-[0.14em] text-[#9FB3C8] uppercase">Riferimenti</p>
+        <div className="rounded-3xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <p className="text-[11px] font-semibold tracking-[0.14em] text-slate-400 uppercase">Riferimenti</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {["DRL Torace PA", "Criteri ALARA", "Qualità proiettiva"].map((chip) => (
               <button
                 key={chip}
                 type="button"
                 onClick={() => setDrl(true)}
-                className="rounded-lg border border-[#2A486D] bg-[#111D30] px-[10px] py-1 text-[11px] font-medium text-[#F8FAFC]"
+                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-[#1e3a5f]"
               >
                 {chip}
               </button>
@@ -130,7 +130,7 @@ export function CaseLibrary({
         </div>
       ) : null}
 
-      <section className="rounded-xl border border-[#2A486D] bg-[#16253B] p-4 shadow-[0_18px_50px_-24px_rgba(0,0,0,0.55)] md:p-6">
+      <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm md:p-6">
         {mode === "modalities" ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {MODALITIES.filter((item) => {
@@ -145,14 +145,14 @@ export function CaseLibrary({
                 onClick={() => setMode("cases")}
                 className="relative h-36 text-left disabled:cursor-not-allowed"
               >
-                <span className="absolute top-0 left-0 h-[10px] w-11 rounded-t-md bg-[#6BA3DE]" />
-                <span className="absolute inset-x-0 top-[10px] bottom-0 flex flex-col rounded-tr-xl rounded-b-xl border border-[#2A486D] bg-[#111D30] p-3">
-                  <span className="font-display text-lg font-bold tracking-tight text-[#F8FAFC]">
+                <span className="absolute top-0 left-0 h-[10px] w-11 rounded-t-md bg-[#93c5fd]" />
+                <span className="absolute inset-x-0 top-[10px] bottom-0 flex flex-col rounded-tr-2xl rounded-b-2xl border border-slate-200 bg-slate-50 p-3">
+                  <span className="font-display text-lg font-bold tracking-tight text-[#16304f]">
                     {item.title}
                   </span>
                   <span
                     className={`mt-auto self-end rounded-lg px-2 py-0.5 text-[11px] font-medium ${
-                      item.locked ? "bg-[#1E324E] text-[#9FB3C8]" : "bg-[#F8FAFC] text-[#1E324E]"
+                      item.locked ? "bg-slate-200 text-slate-500" : "bg-[#1e3a5f] text-white"
                     }`}
                   >
                     {item.badge}
@@ -166,7 +166,7 @@ export function CaseLibrary({
             <button
               type="button"
               onClick={() => setMode("modalities")}
-              className="mb-4 text-sm font-medium text-[#6BA3DE] hover:text-[#F8FAFC]"
+              className="mb-4 text-sm font-semibold text-[#1d4f91]"
             >
               ← Tutte le modalità
             </button>
@@ -179,10 +179,10 @@ export function CaseLibrary({
                   onClick={() => item.ready && setBriefing(true)}
                   className="relative h-[116px] text-left disabled:cursor-not-allowed"
                 >
-                  <span className="absolute top-0 left-0 h-[10px] w-11 rounded-t-md bg-[#1E324E]" />
-                  <span className="absolute inset-x-0 top-[10px] bottom-0 rounded-tr-xl rounded-b-xl border border-[#2A486D] bg-[#111D30] p-3">
+                  <span className="absolute top-0 left-0 h-[10px] w-11 rounded-t-md bg-[#1e3a5f]" />
+                  <span className="absolute inset-x-0 top-[10px] bottom-0 rounded-tr-2xl rounded-b-2xl border border-slate-200 bg-white p-3 shadow-sm">
                     <span className="flex items-start justify-between gap-2">
-                      <span className="font-display text-sm font-bold text-[#F8FAFC]">{item.title}</span>
+                      <span className="font-display text-sm font-bold text-[#16304f]">{item.title}</span>
                       {item.done ? (
                         <span className="text-[15px] text-[#22C55E]" aria-label="Completato">
                           ✓
@@ -190,7 +190,7 @@ export function CaseLibrary({
                       ) : null}
                     </span>
                     {!item.ready ? (
-                      <span className="absolute right-3 bottom-3 rounded-lg bg-[#1E324E] px-2 py-0.5 text-[11px] font-medium text-[#F39C12]">
+                      <span className="absolute right-3 bottom-3 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
                         In preparazione
                       </span>
                     ) : null}

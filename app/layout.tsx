@@ -15,9 +15,9 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "AEQUAN // Imaging & Clinical Simulation (TSRM RX)",
+  title: "AEQUAN · Imaging & Clinical Simulation",
   description:
-    "Simulatore didattico di radiologia tradizionale per la formazione TSRM. Non è un dispositivo medico.",
+    "Piattaforma universitaria di simulazione clinica per la formazione in radiologia. Solo uso didattico, non è un dispositivo medico.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -26,7 +26,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="it"
       className={`${inter.variable} ${jakarta.variable} h-full antialiased`}
     >
-      <body className="h-full overflow-hidden bg-obsidian font-sans text-ice">{children}</body>
+      <body className="min-h-full bg-[#eef3f8] font-sans text-[#0f2744]">{children}</body>
     </html>
   );
 }

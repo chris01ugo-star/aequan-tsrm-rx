@@ -13,13 +13,8 @@ type ParameterPanelProps = {
 export function ParameterPanel({ technique, analysis, onChange }: ParameterPanelProps) {
   const dose = analysis.dosimetry;
   return (
-    <aside className="flex h-full min-h-0 w-full flex-col bg-panel">
-      <div className="flex h-8 shrink-0 items-center border-b border-line px-2">
-        <span className="text-[10px] tracking-[0.14em] text-muted uppercase">
-          Console di acquisizione
-        </span>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto rx-scroll">
+    <aside className="mt-3 w-full">
+      <div className="grid gap-2 sm:grid-cols-2">
         <Stepper
           label="kVp"
           unit="kVp"
@@ -89,8 +84,8 @@ export function ParameterPanel({ technique, analysis, onChange }: ParameterPanel
           onChange={(collH) => onChange({ collH })}
         />
 
-        <section className="border-b border-line px-2 py-2">
-          <div className="font-display text-[11px] tracking-[0.12em] text-ice uppercase">
+        <section className="sm:col-span-2 rounded-2xl border border-slate-100 bg-slate-50 px-3 py-3">
+          <div className="font-display text-[12px] font-semibold text-[#1e3a5f]">
             Radioprotezione ALARA
           </div>
           <p className="mt-1 font-mono text-[9px] leading-relaxed text-muted">
@@ -210,43 +205,41 @@ function Stepper({
   };
 
   return (
-    <div className="border-b border-line px-2 py-1">
-      <div className="flex items-baseline justify-between">
-        <span className="text-[9px] tracking-[0.14em] text-muted uppercase">{label}</span>
-        <span className="font-mono text-[13px] tabular-nums text-cyan-clin">
-          {formatNum(value, digits)}
-          <span className="ml-1 text-[9px] text-muted">{unit}</span>
-        </span>
-      </div>
-      <div className="mt-0.5 flex items-center gap-1">
+    <label className="block rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+      <span className="text-[11px] font-medium text-slate-500">{label}</span>
+      <span className="mt-1 flex items-center gap-2">
         <button
           type="button"
           aria-label={`Diminuisci ${label}`}
           onClick={() => nudge(-1)}
-          className="h-5 w-5 border border-line bg-raised font-mono text-[12px] text-ice hover:border-cyan-clin hover:text-cyan-clin"
+          className="grid h-7 w-7 place-items-center rounded-lg border border-slate-200 bg-white text-sm text-[#1e3a5f]"
         >
           −
         </button>
-        <input
-          className="rx-range min-w-0 flex-1"
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          aria-label={label}
-          onChange={(event) => onChange(Number(event.target.value))}
-        />
+        <span className="min-w-0 flex-1 font-semibold tabular-nums text-[#0f2744]">
+          {formatNum(value, digits)}
+          <span className="ml-1 text-[11px] font-medium text-slate-400">{unit}</span>
+        </span>
         <button
           type="button"
           aria-label={`Aumenta ${label}`}
           onClick={() => nudge(1)}
-          className="h-5 w-5 border border-line bg-raised font-mono text-[12px] text-ice hover:border-cyan-clin hover:text-cyan-clin"
+          className="grid h-7 w-7 place-items-center rounded-lg border border-slate-200 bg-white text-sm text-[#1e3a5f]"
         >
           +
         </button>
-      </div>
-    </div>
+      </span>
+      <input
+        className="rx-range mt-1 w-full"
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        aria-label={label}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+    </label>
   );
 }
 
@@ -262,22 +255,20 @@ function ToggleRow<T extends string>({
   onChange: (value: T) => void;
 }) {
   return (
-    <div className="border-b border-line px-2 py-1.5">
-      <div className="mb-1 text-[9px] tracking-[0.14em] text-muted uppercase">{label}</div>
-      <div className="flex">
-        {options.map((option, index) => {
+    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 sm:col-span-2">
+      <div className="mb-1 text-[11px] font-medium text-slate-500">{label}</div>
+      <div className="flex gap-1">
+        {options.map((option) => {
           const active = option.value === value;
           return (
             <button
               key={option.value}
               type="button"
               onClick={() => onChange(option.value)}
-              className={`h-8 flex-1 rounded-lg border font-mono text-[10px] ${
-                index > 0 ? "ml-1" : ""
-              } ${
+              className={`h-9 flex-1 rounded-lg border text-[11px] font-semibold ${
                 active
-                  ? "border-[#F8FAFC] bg-[#F8FAFC] text-[#1E324E]"
-                  : "border-[#2A486D] bg-[#111D30] text-[#F8FAFC] hover:border-[#345884]"
+                  ? "border-sky-200 bg-sky-50 text-[#1e3a5f]"
+                  : "border-slate-200 bg-white text-slate-500 hover:border-sky-200"
               }`}
             >
               {option.label}

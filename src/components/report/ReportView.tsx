@@ -41,27 +41,17 @@ export function ReportView({
   const doseRatio = Math.min(cumulativeDap / DRL_CHEST_PA.dapDGyCm2, 1.4);
 
   return (
-    <div className="min-h-dvh overflow-y-auto bg-[#0B1320] text-[#F8FAFC] rx-scroll">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 pt-6 pb-4 sm:px-6">
-        <button
-          type="button"
-          onClick={onLibrary}
-          className="rounded-full border border-[#2A486D] bg-[#16253B]/80 px-4 py-2 text-xs font-medium backdrop-blur-md"
-        >
+    <div className="mx-auto max-w-5xl px-3 py-5 text-[#0f2744] sm:px-6">
+      <div className="mb-4 flex items-center justify-between">
+        <button type="button" onClick={onLibrary} className={secondaryBtn}>
           ← Dashboard
         </button>
-        <Image
-          src="/aequan-logo-horizontal.png"
-          alt="Aequan"
-          width={140}
-          height={28}
-          className="h-7 w-auto brightness-0 invert"
-        />
+        <Image src="/aequan-logo-horizontal.png" alt="Aequan" width={140} height={28} className="h-7 w-auto" />
       </div>
 
-      <article className="mx-auto mb-10 max-w-5xl rounded-none border border-[#2A486D] bg-[#16253B] shadow-[0_14px_40px_-20px_rgba(0,0,0,0.65)]">
-        <header className="border-b-[6px] border-[#6BA3DE] px-4 py-5 sm:px-6">
-          <p className="font-mono text-[10px] tracking-[0.24em] text-[#6BA3DE] uppercase">
+      <article className="mb-10 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <header className="border-b-4 border-[#3b82f6] px-4 py-5 sm:px-6">
+          <p className="font-mono text-[10px] tracking-[0.24em] text-[#1d4f91] uppercase">
             TSRM RX · Pre-valutazione
           </p>
           <h1 className="mt-1 font-display text-2xl font-bold tracking-tight">Referto di valutazione tecnica</h1>
@@ -73,32 +63,32 @@ export function ReportView({
           </dl>
         </header>
 
-        <section className="border-b border-[#2A486D] px-4 py-5 sm:px-6">
+        <section className="border-b border-slate-100 px-4 py-5 sm:px-6">
           <p className="font-display text-[44px] leading-none font-semibold tabular-nums sm:text-[48px]">
             {formatNum(evaluation.total, 1)}
-            <span className="text-2xl text-[#9FB3C8]">/30</span>
+            <span className="text-2xl text-slate-400">/30</span>
           </p>
-          <p className="mt-1 font-mono text-xs tracking-[0.12em] text-[#9FB3C8]">{evaluation.verdict}</p>
+          <p className="mt-1 font-mono text-xs tracking-[0.12em] text-slate-500">{evaluation.verdict}</p>
           <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
             {evaluation.sections.map((section) => (
-              <div key={section.id} className="rounded-xl bg-[#111D30] px-2 py-2">
-                <p className="text-[11px] text-[#9FB3C8]">{section.title}</p>
+              <div key={section.id} className="rounded-xl bg-slate-50 px-2 py-2">
+                <p className="text-[11px] text-slate-500">{section.title}</p>
                 <p className="font-mono text-sm tabular-nums">
                   {formatNum(section.score, 1)}/{section.max}
                 </p>
               </div>
             ))}
           </div>
-          <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-[#111D30]">
-            <div className="h-full bg-[#6BA3DE]" style={{ width: `${ratio * 100}%` }} />
+          <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100">
+            <div className="h-full bg-[#3b82f6]" style={{ width: `${ratio * 100}%` }} />
           </div>
           {drl || wrong ? (
-            <p className="mt-3 rounded-xl border border-[#C0392B] bg-[#3A1414] px-3 py-2 text-sm text-[#F8FAFC]">
+            <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
               {drl ? "Allerta critica: DAP oltre il DRL del torace PA. " : ""}
               {wrong ? "Proiezione o decubito non coerenti con il PA in ortostatismo." : ""}
             </p>
           ) : null}
-          <p className="mt-3 text-sm leading-relaxed text-[#F8FAFC]">{evaluation.summary}</p>
+          <p className="mt-3 text-sm leading-relaxed text-[#0f2744]">{evaluation.summary}</p>
         </section>
 
         <section>
@@ -107,18 +97,18 @@ export function ReportView({
             const pass = percent >= 70;
             const expanded = open === section.id;
             return (
-              <div key={section.id} className="border-b border-[#2A486D]">
+              <div key={section.id} className="border-b border-slate-100">
                 <button
                   type="button"
                   onClick={() => setOpen(expanded ? null : section.id)}
                   className="flex w-full items-center gap-3 px-4 py-3 text-left sm:px-6"
                 >
                   <span className="min-w-0 flex-1 font-display text-sm font-bold">{section.title}</span>
-                  <span className="font-mono text-xs tabular-nums text-[#9FB3C8]">{percent}/100</span>
+                  <span className="font-mono text-xs tabular-nums text-slate-500">{percent}/100</span>
                   <span className="font-mono text-xs tabular-nums">
                     {formatNum(section.score, 1)}/{section.max}
                   </span>
-                  <span className="text-[11px] text-[#9FB3C8]">soglia ≥70</span>
+                  <span className="text-[11px] text-slate-400">soglia ≥70</span>
                   <span className={pass ? "text-xs text-[#22C55E]" : "text-xs text-[#EF4444]"}>
                     {pass ? "Idoneo" : "Non idoneo"}
                   </span>
@@ -127,15 +117,15 @@ export function ReportView({
                   <ul className="space-y-2 px-4 pb-4 sm:px-6">
                     {section.lines.map((line) => (
                       <li key={line.label}>
-                        <div className="flex justify-between font-mono text-[11px] tabular-nums text-[#9FB3C8]">
-                          <span className="max-w-[70%] truncate text-[#F8FAFC]">{line.label}</span>
+                        <div className="flex justify-between font-mono text-[11px] tabular-nums text-slate-500">
+                          <span className="max-w-[70%] truncate text-[#0f2744]">{line.label}</span>
                           <span>
                             {formatNum(line.points, 1)}/{formatNum(line.max, 1)}
                           </span>
                         </div>
-                        <div className="mt-1 h-1.5 bg-[#111D30]">
+                        <div className="mt-1 h-1.5 rounded-full bg-slate-100">
                           <div
-                            className="h-full bg-[#6BA3DE]"
+                            className="h-full rounded-full bg-[#3b82f6]"
                             style={{ width: `${Math.min(100, (line.points / line.max) * 100)}%` }}
                           />
                         </div>
@@ -151,10 +141,10 @@ export function ReportView({
           })}
         </section>
 
-        <section className="grid gap-4 border-b border-[#2A486D] px-4 py-4 sm:px-6 md:grid-cols-3">
+        <section className="grid gap-4 border-b border-slate-100 px-4 py-4 sm:px-6 md:grid-cols-3">
           <div>
-            <p className="text-[11px] tracking-[0.12em] text-[#9FB3C8] uppercase">Budget dose DRL</p>
-            <div className="mt-2 h-1.5 bg-[#111D30]">
+            <p className="text-[11px] tracking-[0.12em] text-slate-400 uppercase">Budget dose DRL</p>
+            <div className="mt-2 h-1.5 rounded-full bg-slate-100">
               <div
                 className="h-full"
                 style={{
@@ -170,17 +160,17 @@ export function ReportView({
           </p>
         </section>
 
-        <section className="border-b border-[#2A486D] px-4 py-4 sm:px-6">
+        <section className="border-b border-slate-100 px-4 py-4 sm:px-6">
           <h2 className="font-display text-base font-bold">Delta tecnico</h2>
-          <p className="mt-1 text-xs text-[#9FB3C8]">Tuo settaggio vs standard di riferimento</p>
-          <div className="mt-3 grid grid-cols-[1fr_1fr_1.2fr] text-[11px] text-[#9FB3C8]">
+          <p className="mt-1 text-xs text-slate-500">Tuo settaggio vs standard di riferimento</p>
+          <div className="mt-3 grid grid-cols-[1fr_1fr_1.2fr] text-[11px] text-slate-400">
             <span>Parametro</span><span>Eseguito</span><span>Riferimento</span>
           </div>
           {CHEST_PA_REFERENCE.map((row) => {
             const done = executedValue(row.parameter, shot.technique);
             return (
-              <div key={row.parameter} className="grid grid-cols-[1fr_1fr_1.2fr] border-t border-[#1E324E] py-1 font-mono text-xs">
-                <span className="text-[#9FB3C8]">{row.parameter}</span>
+              <div key={row.parameter} className="grid grid-cols-[1fr_1fr_1.2fr] border-t border-slate-100 py-1 font-mono text-xs">
+                <span className="text-slate-500">{row.parameter}</span>
                 <span style={{ color: done.aligned ? "#22C55E" : "#EF4444" }}>{done.text}</span>
                 <span>{row.standard}</span>
               </div>
@@ -188,7 +178,7 @@ export function ReportView({
           })}
         </section>
 
-        <section className="border-b border-[#2A486D] px-4 py-4 sm:px-6">
+        <section className="border-b border-slate-100 px-4 py-4 sm:px-6">
           <h2 className="font-display text-base font-bold">Coaching e debriefing</h2>
           <div className="mt-3 grid gap-4 md:grid-cols-2">
             <div>
@@ -222,7 +212,7 @@ export function ReportView({
 function Meta({ k, v }: { k: string; v: string }) {
   return (
     <div>
-      <dt className="text-[11px] text-[#9FB3C8]">{k}</dt>
+      <dt className="text-[11px] text-slate-500">{k}</dt>
       <dd className="font-medium">{v}</dd>
     </div>
   );
@@ -231,7 +221,7 @@ function Meta({ k, v }: { k: string; v: string }) {
 function FindingRow({ finding }: { finding: Finding }) {
   const color = finding.level === "ok" ? "#22C55E" : finding.level === "warn" ? "#F39C12" : "#EF4444";
   return (
-    <li className="flex gap-2 text-xs leading-snug text-[#F8FAFC]">
+    <li className="flex gap-2 text-xs leading-snug text-[#0f2744]">
       <span className="mt-1 h-1.5 w-1.5 shrink-0" style={{ background: color }} />
       {finding.text}
     </li>

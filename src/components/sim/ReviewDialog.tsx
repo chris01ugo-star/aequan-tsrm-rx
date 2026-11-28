@@ -75,14 +75,14 @@ export function ReviewDialog({
   if (!shot) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#0B1320]/75 p-3">
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-[#0f2744]/40 p-2 sm:items-center sm:p-4">
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="review-title"
-        className="flex max-h-[calc(100dvh-24px)] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-[#2A486D] bg-[#16253B]"
+        className="flex max-h-[calc(100dvh-16px)] w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white text-[#0f2744]"
       >
-        <header className="flex items-center justify-between border-b border-[#2A486D] px-4 py-3">
+        <header className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
           <h2 id="review-title" className="font-display text-base font-bold">
             Review e artefatti
           </h2>
@@ -90,8 +90,8 @@ export function ReviewDialog({
             Chiudi
           </button>
         </header>
-        <div className="grid min-h-0 flex-1 md:grid-cols-2">
-          <div className="min-h-[220px] border-b border-[#2A486D] md:border-r md:border-b-0">
+        <div className="grid min-h-0 flex-1 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="min-h-[240px] border-b border-slate-100 lg:border-r lg:border-b-0">
             <ViewerPanel
               clinical={clinical}
               technique={shot.technique}
@@ -114,7 +114,7 @@ export function ReviewDialog({
             />
           </div>
           <div className="min-h-0 overflow-y-auto rx-scroll px-4 py-3">
-            <p className="text-xs leading-relaxed text-[#9FB3C8]">
+            <p className="text-xs leading-relaxed text-slate-500">
               Scegli lo scatto dalla striscia, poi dichiara se è adeguato e quali difetti riconosci.
             </p>
             <div className="mt-3 flex gap-2">
@@ -138,7 +138,7 @@ export function ReviewDialog({
             </ul>
           </div>
         </div>
-        <div className="border-t border-[#2A486D] p-3">
+        <div className="border-t border-slate-100 p-3">
           <button type="button" disabled={!ready} onClick={onDeliver} className={`${primaryBtn} w-full`}>
             Consegna e genera Referto →
           </button>
@@ -153,8 +153,8 @@ function Choice({ on, onClick, children }: { on: boolean; onClick: () => void; c
     <button
       type="button"
       onClick={onClick}
-      className={`h-9 flex-1 rounded-xl text-xs font-medium ${
-        on ? "bg-[#F8FAFC] text-[#1E324E]" : "border border-[#2A486D] bg-[#111D30] text-[#F8FAFC]"
+      className={`h-10 flex-1 rounded-xl text-xs font-semibold ${
+        on ? "bg-[#1e3a5f] text-white" : "border border-slate-200 bg-white text-slate-500"
       }`}
     >
       {children}

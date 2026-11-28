@@ -125,8 +125,8 @@ export function ViewerPanel({
   }
 
   return (
-    <section className="flex min-w-0 flex-1 flex-col bg-obsidian">
-      <div className="relative min-h-0 flex-1 [container-type:size]">
+    <section className="flex min-h-[320px] min-w-0 flex-1 flex-col bg-white sm:min-h-[420px]">
+      <div className="relative min-h-[280px] flex-1 bg-[#071018] [container-type:size] sm:min-h-[360px]">
         <div
           className="absolute top-1/2 left-1/2"
           style={{
@@ -205,7 +205,7 @@ export function ViewerPanel({
         />
 
         {dirty && shot ? (
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 border border-[#8A5A12] bg-obsidian px-2 py-1 font-mono text-[10px] tracking-[0.12em] text-amber-rx">
+          <div className="absolute top-2 left-1/2 -translate-x-1/2 rounded-full border border-amber-300 bg-amber-50 px-2 py-1 font-mono text-[10px] tracking-[0.08em] text-amber-700">
             GENERATORE MODIFICATO — IMMAGINE NON AGGIORNATA
           </div>
         ) : null}
@@ -335,13 +335,13 @@ function Thumb({
     <button
       type="button"
       onClick={onClick}
-      className={`relative h-10 w-12 shrink-0 overflow-hidden border bg-black ${
-        active ? "border-cyan-clin" : "border-line hover:border-[#345884]"
+      className={`relative h-12 w-16 shrink-0 overflow-hidden rounded-lg border-2 bg-black ${
+        active ? "border-[#1e3a5f]" : "border-slate-200 hover:border-sky-300"
       }`}
       aria-label={`Rivedi scatto ${shot.index}`}
     >
       <canvas ref={ref} className="h-full w-full object-contain" />
-      <span className="absolute right-0 bottom-0 bg-obsidian/80 px-0.5 font-mono text-[9px] tabular-nums text-ice">
+      <span className="absolute right-0 bottom-0 bg-black/70 px-1 font-mono text-[9px] tabular-nums text-white">
         {shot.index}
       </span>
     </button>
@@ -396,7 +396,7 @@ function bottomRight(
 function Corner({ className, lines }: { className: string; lines: string[] }) {
   return (
     <div
-      className={`pointer-events-none absolute font-mono text-[10px] leading-[1.35] tracking-wide text-ice ${className}`}
+      className={`pointer-events-none absolute font-mono text-[10px] leading-[1.35] tracking-wide text-white drop-shadow ${className}`}
     >
       {lines.map((line, index) => (
         <div key={`${line}-${index}`}>{line}</div>
@@ -421,10 +421,10 @@ function ToolButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={`h-6 shrink-0 rounded-md border px-1.5 text-[9px] tracking-[0.04em] disabled:text-muted ${
+      className={`h-7 shrink-0 rounded-lg border px-2 text-[10px] font-semibold disabled:text-slate-300 ${
         active
-          ? "border-[#F8FAFC] bg-[#F8FAFC] text-[#1E324E]"
-          : "border-[#2A486D] bg-[#111D30] text-[#F8FAFC] hover:border-[#345884]"
+          ? "border-sky-200 bg-sky-50 text-[#1e3a5f]"
+          : "border-slate-200 bg-white text-slate-500 hover:border-sky-200"
       }`}
     >
       {children}
@@ -453,9 +453,9 @@ function CenteringField({
         <div className="absolute top-0 bottom-0 left-1/2 w-px bg-[rgba(107,163,222,0.85)]" />
       </div>
       <ChestGuide lateral={lateral} className="opacity-80" style={{ clipPath: clip }} />
-      <div className="pointer-events-none absolute inset-x-0 top-8 flex justify-center px-6">
-        <div className="max-w-md border border-line bg-obsidian/95 px-3 py-1.5 text-center">
-          <p className="font-display text-[12px] leading-snug text-ice">
+          <div className="pointer-events-none absolute inset-x-0 top-8 flex justify-center px-6">
+            <div className="max-w-md rounded-xl border border-white/15 bg-black/70 px-3 py-1.5 text-center">
+              <p className="font-display text-[12px] leading-snug text-white">
             Sala pronta — Calibra posizionamento, geometria e parametri fisici prima di esporre
           </p>
           <p className="mt-0.5 font-mono text-[10px] tracking-[0.14em] text-amber-rx">

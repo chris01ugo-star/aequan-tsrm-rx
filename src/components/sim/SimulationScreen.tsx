@@ -1,16 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { Bookmark, Check, Play, RotateCcw } from "lucide-react";
 import { GeometryPanel } from "@/components/console/GeometryPanel";
 import { ParameterPanel } from "@/components/console/ParameterPanel";
 import { ViewerPanel, type ViewerTool } from "@/components/console/ViewerPanel";
-import { RisSummary } from "@/components/library/RisSummary";
-import { exposeBtn, primaryBtn } from "@/components/ui/buttons";
+import { exposeBtn, secondaryBtn } from "@/components/ui/buttons";
 import { formatNum } from "@/lib/number";
 import { sameTechnique } from "@/lib/rxPhysics";
 import type { Analysis, ClinicalCase, ExposureShot, GrayWindow, Technique } from "@/types/rx";
 
 const MAX_SHOTS = 3;
+
+const FLOW = ["Briefing", "Console", "Acquisizione", "Review", "Debriefing"];
 
 export function SimulationScreen({
   clinical,
@@ -19,7 +20,6 @@ export function SimulationScreen({
   shots,
   selectedIndex,
   acquiring,
-  elapsedSec,
   gray,
   zoom,
   panX,
@@ -67,108 +67,168 @@ export function SimulationScreen({
   onExpose: () => void;
   onReview: () => void;
 }) {
-  const [tab, setTab] = useState<"room" | "position">("room");
   const shot = shots[selectedIndex] ?? null;
   const latest = shots[shots.length - 1] ?? null;
   const dirty = Boolean(latest && shot === latest && !sameTechnique(latest.technique, technique));
   const atLimit = shots.length >= MAX_SHOTS;
-  const clock = `${String(Math.floor(elapsedSec / 60)).padStart(2, "0")}:${String(elapsedSec % 60).padStart(2, "0")}`;
+  const flowIndex = shots.length === 0 ? 1 : 2;
 
   return (
-    <div className="flex h-dvh flex-col gap-[10px] overflow-hidden bg-[#0B1320] p-[10px] text-[#F8FAFC]">
-      <header className="sticky top-0 z-10 grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-2xl border border-[#2A486D] bg-[#16253B]/95 px-4 py-2.5 shadow-sm backdrop-blur-md">
-        <div className="flex min-w-0 items-center gap-2">
-          <h1 className="truncate font-display text-base font-bold tracking-tight sm:text-lg">
-            {clinical.title}
-          </h1>
-          <span className="shrink-0 rounded-full bg-[#F8FAFC] px-[10px] py-1 text-[11px] font-semibold text-[#1E324E]">
-            Sala RX · Torace
-          </span>
+    <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-3 py-4 sm:px-5 sm:py-5">
+      <ol className="flex items-center gap-2 overflow-x-auto rounded-2xl border border-white/80 bg-white px-3 py-3 shadow-sm sm:px-5">
+        <Phase n="1" label="Briefing" state="done" />
+        <span className="h-px w-6 shrink-0 bg-slate-200 sm:w-10" />
+        <Phase n="2" label="Acquisizione" state="current" />
+        <span className="h-px w-6 shrink-0 bg-slate-200 sm:w-10" />
+        <Phase n="3" label="Review" state={shots.length ? "todo" : "todo"} />
+        <span className="hidden h-px w-10 shrink-0 bg-slate-200 md:block" />
+        <Phase n="4" label="Debriefing / Valutazione" state="todo" />
+      </ol>
+
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="font-display text-2xl font-bold tracking-tight text-[#16304f] sm:text-[28px]">
+              Caso 01 — {clinical.title}
+            </h1>
+            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+              Simulazione
+            </span>
+            <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-semibold text-[#1e3a5f]">
+              RX
+            </span>
+          </div>
+          <p className="mt-1 text-sm italic text-slate-500">{clinical.indication}</p>
         </div>
-        <div className="rounded-2xl border border-[#2A486D] bg-[#111D30] px-3.5 py-1.5 font-mono text-sm tabular-nums">
-          {clock}
-        </div>
-        <div className="flex items-center justify-end gap-1">
-          <button type="button" onClick={onBriefing} className="rounded-md px-[10px] py-[6px] text-[13px] text-[#9FB3C8] hover:bg-[#1E324E] hover:text-[#F8FAFC]">
-            Briefing RIS
-          </button>
-          <button type="button" onClick={onResetTechnique} className="rounded-md px-[10px] py-[6px] text-[13px] text-[#9FB3C8] hover:bg-[#1E324E] hover:text-[#F8FAFC]">
-            Reset parametri
-          </button>
-          <button
-            type="button"
-            disabled={shots.length < 1}
-            onClick={onReview}
-            className="rounded-md px-[10px] py-[6px] text-[13px] font-medium text-[#F8FAFC] hover:bg-[#1E324E] disabled:text-[#9FB3C8]"
-          >
-            Review & Termina
+        <div className="flex gap-1">
+          <button type="button" onClick={onBriefing} className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-[#1e3a5f]" aria-label="Apri briefing">
+            <Bookmark size={16} />
           </button>
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-[10px] lg:grid-cols-[1.15fr_1.55fr_1.15fr]">
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#2A486D] bg-[#16253B] shadow-sm">
-          <div className="m-2 flex rounded-2xl border border-[#2A486D] bg-[#111D30] p-1">
-            <Tab on={tab === "room"} onClick={() => setTab("room")}>Sala & Paziente</Tab>
-            <Tab on={tab === "position"} onClick={() => setTab("position")}>Posizionamento</Tab>
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
+        <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+          <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-2 text-xs text-slate-500">
+            <span className="font-medium text-[#1e3a5f]">
+              {technique.projection === "LL" ? "Laterale" : technique.projection} ·{" "}
+              {technique.decubitus === "ORTOSTATISMO" ? "Ortostatismo" : "Supino"}
+            </span>
+            <span>
+              {shot ? `Scatto ${shot.index}` : "Pre-esposizione"} · {clinical.pseudoId}
+            </span>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto rx-scroll px-2 pb-2">
-            {tab === "room" ? (
-              <>
-                <div className="mb-2 rounded-xl bg-[#111D30] p-2">
-                  <RisSummary clinical={clinical} />
-                  <p className="mt-2 text-xs text-[#F8FAFC]">{clinical.indication}</p>
-                </div>
-                <GeometryPanel technique={technique} onChange={onTechnique} pane="room" />
-              </>
-            ) : (
+          <div className="min-h-[320px] sm:min-h-[460px]">
+            <ViewerPanel
+              clinical={clinical}
+              technique={technique}
+              analysis={analysis}
+              shot={shot}
+              dirty={dirty}
+              acquiring={acquiring}
+              gray={gray}
+              zoom={zoom}
+              panX={panX}
+              panY={panY}
+              overlay={overlay}
+              tool={tool}
+              shots={shots}
+              selectedIndex={selectedIndex}
+              onSelectShot={onSelectShot}
+              onGray={onGray}
+              onView={onView}
+              onReset={onResetView}
+            />
+          </div>
+          <p className="border-t border-slate-100 px-3 py-2 font-mono text-[11px] text-slate-500">
+            {formatNum(technique.kvp, 0)} kV · {formatNum(technique.mas, 1)} mAs · DFF {formatNum(technique.dff, 0)} cm ·{" "}
+            {technique.focal === "FINE" ? "Fuoco fine" : "Fuoco grosso"} · {technique.grid ? "Griglia 12:1" : "No griglia"} ·{" "}
+            Coll {formatNum(technique.collW, 0)}×{formatNum(technique.collH, 0)} cm
+          </p>
+        </section>
+
+        <div className="grid gap-4">
+          <section className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm">
+            <h2 className="font-display text-base font-bold">Parametri di acquisizione</h2>
+            <div className="mt-3">
               <GeometryPanel technique={technique} onChange={onTechnique} pane="position" />
-            )}
+            </div>
+            <ParameterPanel technique={technique} analysis={analysis} onChange={onTechnique} />
+            <button type="button" onClick={onResetTechnique} className={`${secondaryBtn} mt-3 h-9 w-full text-xs`}>
+              <RotateCcw size={14} />
+              Ripristina parametri di sala
+            </button>
+          </section>
+
+          <section className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm">
+            <h2 className="text-sm font-semibold">Workflow del caso</h2>
+            <ol className="mt-3 flex items-center justify-between gap-1">
+              {FLOW.map((label, step) => {
+                const on = step <= flowIndex;
+                return (
+                  <li key={label} className="flex min-w-0 flex-1 flex-col items-center gap-1 text-center">
+                    <span
+                      className={`grid h-7 w-7 place-items-center rounded-full text-[11px] font-semibold ${
+                        step < flowIndex
+                          ? "bg-emerald-500 text-white"
+                          : on
+                            ? "bg-[#1e3a5f] text-white"
+                            : "bg-slate-100 text-slate-400"
+                      }`}
+                    >
+                      {step < flowIndex ? <Check size={12} /> : step + 1}
+                    </span>
+                    <span className="truncate text-[10px] text-slate-500">{label}</span>
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+            <section className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm">
+              <h2 className="text-sm font-semibold">Stato scenario</h2>
+              <p className="mt-2 text-xs text-slate-500">
+                {shots.length} di {MAX_SHOTS} scatti completati
+              </p>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                <div className="h-full rounded-full bg-[#3b82f6]" style={{ width: `${(shots.length / MAX_SHOTS) * 100}%` }} />
+              </div>
+              <p className="mt-1 text-right text-xs font-semibold text-[#1e3a5f]">
+                {Math.round((shots.length / MAX_SHOTS) * 100)}%
+              </p>
+            </section>
+            <section className="rounded-3xl border border-slate-200/80 bg-white p-4 shadow-sm">
+              <h2 className="text-sm font-semibold">Geometria di sala</h2>
+              <div className="mt-2 overflow-hidden rounded-2xl border border-slate-100">
+                <GeometryPanel technique={technique} onChange={onTechnique} pane="room" />
+              </div>
+            </section>
           </div>
-        </section>
-
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#2A486D] bg-[#16253B] shadow-sm">
-          <ViewerPanel
-            clinical={clinical}
-            technique={technique}
-            analysis={analysis}
-            shot={shot}
-            dirty={dirty}
-            acquiring={acquiring}
-            gray={gray}
-            zoom={zoom}
-            panX={panX}
-            panY={panY}
-            overlay={overlay}
-            tool={tool}
-            shots={shots}
-            selectedIndex={selectedIndex}
-            onSelectShot={onSelectShot}
-            onGray={onGray}
-            onView={onView}
-            onReset={onResetView}
-          />
-        </section>
-
-        <section className="min-h-0 overflow-hidden rounded-2xl border border-[#2A486D] bg-[#16253B] shadow-sm">
-          <ParameterPanel technique={technique} analysis={analysis} onChange={onTechnique} />
-        </section>
+        </div>
       </div>
 
-      <footer className="flex shrink-0 items-center justify-between gap-3 rounded-xl border border-[#2A486D] bg-[#16253B]/90 px-4 py-2.5">
-        <div className="font-mono text-xs tabular-nums text-[#F8FAFC]">
-          Scatti {shots.length} / {MAX_SHOTS}
-          <span className="ml-3">Dose cumulativa {formatNum(cumulativeDap, 2)} dGy·cm²</span>
+      <footer className="sticky bottom-20 z-20 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/95 px-3 py-3 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between lg:bottom-4">
+        <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600">
+          <span>
+            Scatti <strong className="text-[#1e3a5f]">{shots.length}/{MAX_SHOTS}</strong>
+          </span>
+          <span>
+            Dose cumulativa{" "}
+            <strong className="text-[#1e3a5f]">{formatNum(cumulativeDap, 2)} dGy·cm²</strong>
+          </span>
         </div>
-        <p className="hidden text-center text-[11px] text-[#9FB3C8] sm:block">
-          Solo uso didattico · Non dispositivo medico
-        </p>
-        <div className="flex gap-2">
-          <button type="button" onClick={onExpose} disabled={acquiring || atLimit} className={exposeBtn}>
-            {acquiring ? "Acquisizione…" : atLimit ? "Limite 3 scatti" : "Avvia acquisizione RX"}
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={onResetTechnique} className={secondaryBtn}>
+            <RotateCcw size={15} />
+            Ripeti acquisizione
           </button>
-          <button type="button" onClick={onReview} disabled={shots.length < 1 || acquiring} className={primaryBtn}>
-            Procedi a Review →
+          <button type="button" onClick={onExpose} disabled={acquiring || atLimit} className={exposeBtn}>
+            <Play size={15} />
+            {acquiring ? "Acquisizione…" : atLimit ? "Limite 3 scatti" : "Avvia acquisizione"}
+          </button>
+          <button type="button" onClick={onReview} disabled={shots.length < 1 || acquiring} className={secondaryBtn}>
+            Review
           </button>
         </div>
       </footer>
@@ -176,16 +236,17 @@ export function SimulationScreen({
   );
 }
 
-function Tab({ on, onClick, children }: { on: boolean; onClick: () => void; children: string }) {
+function Phase({ n, label, state }: { n: string; label: string; state: "done" | "current" | "todo" }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex-1 rounded-full px-[14px] py-[6px] text-xs font-medium ${
-        on ? "bg-[#F8FAFC] text-[#1E324E]" : "text-[#9FB3C8] hover:text-[#F8FAFC]"
-      }`}
-    >
-      {children}
-    </button>
+    <li className="flex shrink-0 items-center gap-2 text-sm font-semibold text-[#1e3a5f]">
+      <span
+        className={`grid h-7 w-7 place-items-center rounded-full text-xs ${
+          state === "done" ? "bg-emerald-500 text-white" : state === "current" ? "bg-[#1e3a5f] text-white" : "bg-slate-100 text-slate-400"
+        }`}
+      >
+        {state === "done" ? <Check size={14} /> : n}
+      </span>
+      <span className={state === "todo" ? "text-slate-400" : ""}>{label}</span>
+    </li>
   );
 }

@@ -1,148 +1,218 @@
 "use client";
 
-import { Bell, FolderOpen, LayoutDashboard, Library, PanelLeft, Search } from "lucide-react";
+import {
+  Bell,
+  BookOpen,
+  CircleHelp,
+  FolderOpen,
+  Layers,
+  LayoutDashboard,
+  Menu,
+  Settings,
+  Stethoscope,
+  X,
+} from "lucide-react";
 import Image from "next/image";
 import { useState, type ReactNode } from "react";
-import { primaryBtn } from "@/components/ui/buttons";
 
-export type DashView = "library" | "archive" | "analytics";
+export type DashView = "dashboard" | "library" | "archive" | "report" | "bank" | "settings";
 
-const NAV: { id: DashView; label: string; icon: typeof Library }[] = [
-  { id: "library", label: "Libreria casi", icon: Library },
+const NAV: { id: DashView; label: string; icon: typeof LayoutDashboard }[] = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "library", label: "Scenari clinici", icon: Stethoscope },
   { id: "archive", label: "Archivio sessioni", icon: FolderOpen },
-  { id: "analytics", label: "Analytics Aula", icon: LayoutDashboard },
+  { id: "report", label: "Report", icon: BookOpen },
+  { id: "bank", label: "Banca dati casi", icon: Layers },
+  { id: "settings", label: "Impostazioni", icon: Settings },
 ];
 
 export function DashboardShell({
-  collapsed,
-  onToggle,
   active,
   onNavigate,
-  onNewSession,
   query,
   onQuery,
+  showSearch = false,
   children,
 }: {
-  collapsed: boolean;
-  onToggle: () => void;
   active: DashView;
   onNavigate: (view: DashView) => void;
-  onNewSession: () => void;
   query: string;
   onQuery: (value: string) => void;
+  showSearch?: boolean;
   children: ReactNode;
 }) {
-  const [bellOpen, setBellOpen] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const [bell, setBell] = useState(false);
+  const [help, setHelp] = useState(false);
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-[#0B1320] text-[#F8FAFC]">
-      <aside
-        className={`relative flex shrink-0 flex-col border-r border-[#2A486D] bg-[#16253B] transition-[width] duration-200 ${
-          collapsed ? "w-[76px]" : "w-60"
-        }`}
-      >
+    <div className="flex h-dvh flex-col overflow-hidden bg-[#e8eef6] text-[#0f2744]">
+      <header className="z-30 flex h-16 shrink-0 items-center gap-3 border-b border-slate-200/80 bg-white/90 px-3 backdrop-blur-md sm:px-5">
         <button
           type="button"
-          aria-label={collapsed ? "Espandi sidebar" : "Comprimi sidebar"}
-          onClick={onToggle}
-          className="absolute top-1/2 -right-[14px] z-20 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full border-2 border-[#2A486D] bg-[#16253B] text-[#F8FAFC] shadow-sm"
+          className="grid h-10 w-10 place-items-center rounded-xl text-[#1e3a5f] hover:bg-slate-100 lg:hidden"
+          aria-label={menu ? "Chiudi menu" : "Apri menu"}
+          onClick={() => setMenu((value) => !value)}
         >
-          <PanelLeft size={16} />
+          {menu ? <X size={18} /> : <Menu size={18} />}
         </button>
-        <div className="flex h-16 items-center px-[10px]">
-          <button
-            type="button"
-            onClick={onNewSession}
-            className={`${primaryBtn} w-full ${collapsed ? "px-0" : ""}`}
-            title="Nuova Sessione"
-          >
-            {collapsed ? "+" : "Nuova Sessione"}
-          </button>
-        </div>
-        <nav className="flex flex-1 flex-col gap-1 px-[10px] py-4">
-          {NAV.map((item) => {
-            const Icon = item.icon;
-            const on = active === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => onNavigate(item.id)}
-                title={item.label}
-                className={`flex h-10 items-center gap-2 rounded-xl px-2 text-[13px] font-medium ${
-                  on
-                    ? "bg-[#F8FAFC] text-[#1E324E]"
-                    : "text-[#9FB3C8] hover:bg-[#1E324E] hover:text-[#F8FAFC]"
-                } ${collapsed ? "justify-center" : ""}`}
-              >
-                <Icon size={16} />
-                {collapsed ? null : <span className="truncate">{item.label}</span>}
-              </button>
-            );
-          })}
-        </nav>
-        <div className="p-[10px]">
-          <div className={`flex items-center gap-2 ${collapsed ? "justify-center" : ""}`}>
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#1E324E] text-[11px] font-semibold text-[#F8FAFC]">
-              TT
+        <div className="flex min-w-0 items-center gap-3">
+          <Image
+            src="/aequan-logo-horizontal.png"
+            alt="Aequan"
+            width={148}
+            height={28}
+            priority
+            className="h-7 w-auto"
+          />
+          <span className="hidden h-8 w-px bg-slate-200 sm:block" />
+          <span className="hidden min-w-0 leading-tight sm:block">
+            <span className="block truncate text-[13px] font-semibold text-[#1e3a5f]">
+              Imaging & Clinical Simulation
             </span>
-            {collapsed ? null : (
-              <span className="min-w-0">
-                <span className="block truncate text-[13px] font-semibold">TSRM_TUTOR_01</span>
-                <span className="block text-[11px] text-[#9FB3C8]">Fase Ponte · GDPR</span>
-              </span>
-            )}
-          </div>
+            <span className="block truncate text-[11px] text-slate-500">Formazione in Radiologia</span>
+          </span>
         </div>
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="relative flex h-16 shrink-0 items-center gap-4 border-b border-[#1E324E] bg-[#16253B] px-6 shadow-[0_8px_24px_-18px_rgba(0,0,0,0.8)]">
-          <label className="flex h-10 max-w-md flex-1 items-center gap-2 rounded-full border border-[#2A486D] bg-[#111D30] px-3">
-            <Search size={15} className="text-[#9FB3C8]" />
+        {showSearch ? (
+          <label className="ml-auto hidden h-10 max-w-xs flex-1 items-center rounded-full border border-slate-200 bg-slate-50 px-3 md:flex">
             <span className="sr-only">Cerca</span>
             <input
               value={query}
               onChange={(event) => onQuery(event.target.value)}
               placeholder="Cerca casi o modalità"
-              className="h-full w-full bg-transparent text-sm text-[#F8FAFC] outline-none placeholder:text-[#9FB3C8]"
+              className="h-full w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
             />
           </label>
-          <Image
-            src="/aequan-logo-horizontal.png"
-            alt="Aequan"
-            width={180}
-            height={38}
-            priority
-            className={`pointer-events-none absolute top-1/2 h-[38px] w-auto -translate-y-1/2 brightness-0 invert ${
-              query ? "left-[58%]" : "left-1/2 -translate-x-1/2"
-            }`}
-          />
-          <div className="ml-auto flex items-center gap-3">
-            <span className="hidden rounded-full border border-[#2A486D] px-3 py-1 text-[11px] font-medium text-[#9FB3C8] lg:inline">
-              SOLO USO DIDATTICO
+        ) : (
+          <div className="ml-auto" />
+        )}
+        <div className="relative flex items-center gap-1 sm:gap-2">
+          <button
+            type="button"
+            aria-label="Notifiche"
+            onClick={() => {
+              setBell((value) => !value);
+              setHelp(false);
+            }}
+            className="hidden h-10 w-10 place-items-center rounded-full text-slate-500 hover:bg-slate-100 sm:grid"
+          >
+            <Bell size={18} />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setHelp((value) => !value);
+              setBell(false);
+            }}
+            className="inline-flex h-10 items-center gap-1.5 rounded-full px-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+          >
+            <CircleHelp size={18} />
+            <span className="hidden md:inline">Supporto</span>
+          </button>
+          <span className="mx-1 hidden h-8 w-px bg-slate-200 sm:block" />
+          <div className="flex items-center gap-2 rounded-full py-1 pr-1 pl-1 sm:pr-2">
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-[#dbe7f6] text-[12px] font-semibold text-[#1e3a5f]">
+              RC
             </span>
-            <button
-              type="button"
-              aria-label="Notifiche"
-              onClick={() => setBellOpen((value) => !value)}
-              className="grid h-10 w-10 place-items-center rounded-xl text-[#9FB3C8] hover:bg-[#1E324E] hover:text-[#F8FAFC]"
-            >
-              <Bell size={16} />
-            </button>
-            <span className="h-8 w-px bg-[#2A486D]" />
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-[#1E324E] text-[11px] font-semibold">
-              TT
+            <span className="hidden leading-tight md:block">
+              <span className="block text-[13px] font-semibold">Dott.ssa R. Conti</span>
+              <span className="block text-[11px] text-slate-500">Università di Milano</span>
             </span>
           </div>
-          {bellOpen ? (
-            <p className="absolute top-14 right-6 z-20 rounded-xl border border-[#2A486D] bg-[#16253B] px-3 py-2 text-xs text-[#9FB3C8] shadow-sm">
-              Nessuna notifica didattica
+          {bell ? (
+            <p className="absolute top-12 right-0 z-40 w-64 rounded-2xl border border-slate-200 bg-white p-3 text-xs text-slate-500 shadow-lg">
+              Nessuna notifica. Le sessioni restano su questo browser.
             </p>
           ) : null}
-        </header>
-        <div className="min-h-0 flex-1 overflow-y-auto rx-scroll">{children}</div>
+          {help ? (
+            <p className="absolute top-12 right-0 z-40 w-72 rounded-2xl border border-slate-200 bg-white p-3 text-xs leading-relaxed text-slate-600 shadow-lg">
+              Simulatore didattico AEQUAN. Non è un dispositivo medico e non sostituisce il referto
+              clinico. I punteggi valutano la tecnica, non la diagnosi.
+            </p>
+          ) : null}
+        </div>
+      </header>
+
+      <div className="flex min-h-0 flex-1">
+        <aside className="hidden w-[232px] shrink-0 flex-col border-r border-slate-200/80 bg-white/70 px-3 py-4 lg:flex">
+          <NavList active={active} onNavigate={onNavigate} />
+        </aside>
+        <main className="min-w-0 flex-1 overflow-y-auto pb-24 lg:pb-6">{children}</main>
       </div>
+
+      {menu ? (
+        <button
+          type="button"
+          aria-label="Chiudi menu"
+          className="fixed inset-0 z-40 bg-[#0f2744]/30 lg:hidden"
+          onClick={() => setMenu(false)}
+        />
+      ) : null}
+      <aside
+        className={`fixed top-16 bottom-0 left-0 z-50 w-[min(84vw,280px)] border-r border-slate-200 bg-white p-3 shadow-xl transition-transform lg:hidden ${
+          menu ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <NavList
+          active={active}
+          onNavigate={(view) => {
+            setMenu(false);
+            onNavigate(view);
+          }}
+        />
+      </aside>
+
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-slate-200 bg-white/95 px-1 py-1 backdrop-blur lg:hidden">
+        {NAV.slice(0, 4).map((item) => {
+          const Icon = item.icon;
+          const on = active === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onNavigate(item.id)}
+              className={`flex flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-[10px] font-medium ${
+                on ? "text-[#1e3a5f]" : "text-slate-400"
+              }`}
+            >
+              <Icon size={16} />
+              {item.label.split(" ")[0]}
+            </button>
+          );
+        })}
+      </nav>
     </div>
+  );
+}
+
+function NavList({
+  active,
+  onNavigate,
+}: {
+  active: DashView;
+  onNavigate: (view: DashView) => void;
+}) {
+  return (
+    <nav className="flex flex-col gap-1">
+      {NAV.map((item) => {
+        const Icon = item.icon;
+        const on = active === item.id;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onNavigate(item.id)}
+            className={`flex h-11 items-center gap-3 rounded-xl px-3 text-left text-[14px] font-medium transition ${
+              on
+                ? "bg-[#e8f0fb] text-[#1e3a5f]"
+                : "text-slate-500 hover:bg-slate-50 hover:text-[#1e3a5f]"
+            }`}
+          >
+            <Icon size={18} />
+            {item.label}
+          </button>
+        );
+      })}
+    </nav>
   );
 }

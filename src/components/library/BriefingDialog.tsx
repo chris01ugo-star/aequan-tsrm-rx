@@ -26,16 +26,16 @@ export function BriefingDialog({
   const ready = checks.every(Boolean);
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-[#0B1320]/75 p-4">
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-[#0f2744]/40 p-3 sm:items-center">
       <section
         role="dialog"
         aria-modal="true"
         aria-labelledby="briefing-title"
-        className="max-h-[calc(100dvh-32px)] w-full max-w-2xl overflow-y-auto rounded-2xl border border-[#2A486D] bg-[#16253B] rx-scroll"
+        className="max-h-[calc(100dvh-24px)] w-full max-w-2xl overflow-y-auto rounded-3xl border border-slate-200 bg-white text-[#0f2744] rx-scroll"
       >
-        <header className="flex items-start justify-between gap-3 border-b border-[#2A486D] px-5 py-4">
+        <header className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
           <div>
-            <p className="font-mono text-[10px] tracking-[0.16em] text-[#6BA3DE]">RICHIESTA RIS · {clinical.id}</p>
+            <p className="font-mono text-[10px] tracking-[0.16em] text-[#1d4f91]">RICHIESTA RIS · {clinical.id}</p>
             <h2 id="briefing-title" className="font-display text-lg font-bold tracking-tight">
               Caso 01 — Torace, sospetta polmonite lobare dx
             </h2>
@@ -49,8 +49,8 @@ export function BriefingDialog({
           <p>{clinical.history}</p>
           <p>{clinical.question}</p>
           {readOnly ? null : (
-            <fieldset className="rounded-xl border border-[#2A486D] bg-[#111D30] p-3">
-              <legend className="px-1 text-[11px] font-semibold tracking-[0.12em] text-[#9FB3C8] uppercase">
+            <fieldset className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              <legend className="px-1 text-[11px] font-semibold tracking-[0.12em] text-slate-500 uppercase">
                 Safety Gate pre-esame
               </legend>
               <ul className="mt-2 space-y-2">
