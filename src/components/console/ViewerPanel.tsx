@@ -21,6 +21,13 @@ import type {
 
 type ViewerTool = "wl" | "pan";
 
+const WINDOW_PRESETS = [
+  { id: "STD", ww: 2100, wl: 2280 },
+  { id: "POLMONE", ww: 3400, wl: 1200 },
+  { id: "MEDIASTINO", ww: 900, wl: 2100 },
+  { id: "OSSO", ww: 1600, wl: 2800 },
+] as const;
+
 type ViewerPanelProps = {
   clinical: ClinicalCase;
   technique: Technique;
@@ -187,6 +194,20 @@ export function ViewerPanel({
         <span className="w-12 font-mono text-[11px] tabular-nums text-cyan-clin">
           {formatNum(gray.windowLevel, 0)}
         </span>
+        {WINDOW_PRESETS.map((preset) => (
+          <button
+            key={preset.id}
+            type="button"
+            onClick={() => onGray({ windowWidth: preset.ww, windowLevel: preset.wl })}
+            className={`h-7 rounded-md border px-1.5 text-[10px] tracking-wide ${
+              gray.windowWidth === preset.ww && gray.windowLevel === preset.wl
+                ? "border-[#6BA3DE] bg-[#1E3A5F] text-white"
+                : "border-[#2A486D] text-[#C5D4E4] hover:border-[#6BA3DE]"
+            }`}
+          >
+            {preset.id}
+          </button>
+        ))}
         <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-1">
           <ToolButton active={tool === "wl"} onClick={() => onView({ tool: "wl" })}>
             W/L
@@ -217,7 +238,7 @@ export function ViewerPanel({
       <div ref={stageRef} className="relative min-h-[260px] w-full flex-1 overflow-hidden bg-[#000000]">
         <div className="absolute inset-0 flex items-center justify-center">
           <div
-            className={`relative ${shot ? "cursor-crosshair" : ""}`}
+            className={`rx-plate-in relative ${shot ? "cursor-crosshair" : ""}`}
             style={frameStyle}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}

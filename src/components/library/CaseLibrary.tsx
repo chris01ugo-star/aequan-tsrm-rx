@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { QuickGuideDialog } from "@/components/sim/QuickGuideDialog";
 import { BriefingDialog } from "@/components/library/BriefingDialog";
 import { DrlDialog } from "@/components/library/DrlDialog";
 import type { ClinicalCase, SimMode } from "@/types/rx";
@@ -38,6 +39,7 @@ export function CaseLibrary({
   const [mode, setMode] = useState<"modalities" | "cases">("modalities");
   const [briefing, setBriefing] = useState(false);
   const [drl, setDrl] = useState(false);
+  const [guide, setGuide] = useState(false);
   const needle = query.trim().toLowerCase();
 
   const cases = [
@@ -106,9 +108,14 @@ export function CaseLibrary({
             ))}
           </div>
         </div>
-        <button type="button" onClick={() => setDrl(true)} className="text-sm font-medium text-[#6BA3DE] hover:text-[#F8FAFC]">
-          Linee guida & DRL
-        </button>
+        <div className="flex items-center gap-3">
+          <button type="button" onClick={() => setGuide(true)} className="text-sm font-medium text-[#9FB3C8] hover:text-[#F8FAFC]">
+            ? Guida
+          </button>
+          <button type="button" onClick={() => setDrl(true)} className="text-sm font-medium text-[#6BA3DE] hover:text-[#F8FAFC]">
+            Linee guida & DRL
+          </button>
+        </div>
       </header>
 
       {mode === "modalities" ? (
@@ -204,6 +211,7 @@ export function CaseLibrary({
         <BriefingDialog clinical={clinical} onClose={() => setBriefing(false)} onStart={onStart} />
       ) : null}
       {drl ? <DrlDialog onClose={() => setDrl(false)} /> : null}
+      {guide ? <QuickGuideDialog onClose={() => setGuide(false)} /> : null}
     </div>
   );
 }

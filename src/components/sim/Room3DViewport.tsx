@@ -111,11 +111,11 @@ function placeOrtho(
 ) {
   const reach = Math.min(Math.max(sidCm, 90), 200);
   if (supine) {
-    const x0 = -112;
-    const x1 = 112;
-    const z0 = -72;
-    const z1 = 52;
-    const y0 = 52;
+    const x0 = -78;
+    const x1 = 78;
+    const z0 = -110;
+    const z1 = 150;
+    const y0 = 70;
     const y1 = 78 + reach + 22;
     const ax = (x0 + x1) / 2;
     const az = (z0 + z1) / 2;
@@ -138,8 +138,8 @@ function placeOrtho(
   const x1 = 44;
   const z0 = -(reach + 30);
   const z1 = 20;
-  const y0 = 76;
-  const y1 = 198;
+  const y0 = -4;
+  const y1 = 188;
   const ax = (x0 + x1) / 2;
   const az = (z0 + z1) / 2;
   const sy = (y0 + y1) / 2;

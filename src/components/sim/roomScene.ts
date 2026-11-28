@@ -171,12 +171,14 @@ export function createRoomScene(renderer: THREE.WebGLRenderer): {
     const entrance = focal.clone().addScaledVector(dir, Math.max(12, state.sidCm - thickness));
     const laserGeo = room.laser.geometry;
     const laserArray = (laserGeo.attributes.position as THREE.BufferAttribute).array as Float32Array;
-    const arm = 7;
+    const arm = 9;
     writeVertex(laserArray, 0, entrance.clone().addScaledVector(lat, -arm));
     writeVertex(laserArray, 3, entrance.clone().addScaledVector(lat, arm));
     writeVertex(laserArray, 6, entrance.clone().addScaledVector(cranial, -arm));
     writeVertex(laserArray, 9, entrance.clone().addScaledVector(cranial, arm));
     (laserGeo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+    room.laserGlow.position.copy(entrance).addScaledVector(dir, -0.8);
+    room.laserGlow.lookAt(focal);
 
     const rayGeo = room.centralRay.geometry;
     const rayArray = (rayGeo.attributes.position as THREE.BufferAttribute).array as Float32Array;
@@ -186,6 +188,7 @@ export function createRoomScene(renderer: THREE.WebGLRenderer): {
   };
 
   const dispose = () => {
+    phantom.releaseExternal();
     geometries.forEach((geometry) => geometry.dispose());
     room.dispose();
     look.dispose();

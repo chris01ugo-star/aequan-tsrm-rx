@@ -107,12 +107,16 @@ export function StationQuality({
             onReset={onResetView}
           />
         </section>
-        <aside className="h-full min-h-0 space-y-3 overflow-y-auto rounded-xl border border-[#2A486D] bg-[#16253B] p-3 pr-1 rx-scroll">
-          <Card title="Criteri di qualità immagine">
+        <aside className="flex h-full min-h-0 flex-col gap-1.5 overflow-y-auto rounded-xl border border-[#2A486D] bg-[#16253B] p-2 rx-scroll">
+          <Card
+            index="1"
+            title="Qualità immagine"
+            done={gradesReady && quality.acceptable !== null}
+          >
             {AXES.map((axis) => (
-              <div key={axis.key} className="mt-2">
-                <p className="text-[11px] text-[#9FB3C8]">{axis.label}</p>
-                <div className="mt-1 grid grid-cols-3 gap-1">
+              <div key={axis.key} className="mt-1 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-1">
+                <p className="truncate text-[11px] text-[#9FB3C8]" title={axis.label}>{axis.label}</p>
+                <div className="grid w-[210px] grid-cols-3 gap-1">
                   {GRADES.map((grade) => (
                     <Pick
                       key={grade.id}
@@ -136,7 +140,7 @@ export function StationQuality({
             </div>
           </Card>
           {shots.length > 1 ? (
-            <Card title="Reject Analysis">
+            <Card index="R" title="Reject Analysis" done={rejectsReady}>
               <ul className="mt-1 space-y-2">
                 {shots.map((item, index) =>
                   index === selectedIndex ? null : (
@@ -160,24 +164,30 @@ export function StationQuality({
               </ul>
             </Card>
           ) : null}
-          <Card title="Anatomia radiologica">
-            <label className="mt-1 flex items-center gap-2 text-[12px]">
-              <input type="checkbox" checked={quality.bone} onChange={(event) => onQuality({ bone: event.target.checked })} />
-              Componente ossea
-            </label>
-            <label className="mt-1 flex items-center gap-2 text-[12px]">
-              <input type="checkbox" checked={quality.visceral} onChange={(event) => onQuality({ visceral: event.target.checked })} />
-              Componente viscerale
-            </label>
-            <label className="mt-1 flex items-center gap-2 text-[12px]">
-              <input type="checkbox" checked={quality.landmarks} onChange={(event) => onQuality({ landmarks: event.target.checked })} />
-              Strutture di riferimento
-            </label>
-            <label className="mt-1 flex items-center gap-2 text-[12px]">
-              <input type="checkbox" checked={quality.vascular} onChange={(event) => onQuality({ vascular: event.target.checked })} />
-              Componente vascolare
-            </label>
-            <div className="mt-2 grid gap-1">
+          <Card
+            index="2"
+            title="Anatomia radiologica (Item F)"
+            done={quality.bone && quality.visceral && quality.landmarks && quality.vascular && quality.pathology !== null}
+          >
+            <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-1 text-[12px]">
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={quality.bone} onChange={(event) => onQuality({ bone: event.target.checked })} />
+                Ossea
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={quality.visceral} onChange={(event) => onQuality({ visceral: event.target.checked })} />
+                Viscerale
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={quality.landmarks} onChange={(event) => onQuality({ landmarks: event.target.checked })} />
+                Reperi
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="checkbox" checked={quality.vascular} onChange={(event) => onQuality({ vascular: event.target.checked })} />
+                Vascolare
+              </label>
+            </div>
+            <div className="mt-1 grid grid-cols-2 gap-1">
               {(
                 [
                   ["addensamento", "Addensamento parenchimale lobare inferiore/medio destro"],
@@ -192,11 +202,11 @@ export function StationQuality({
               ))}
             </div>
           </Card>
-          <Card title="Radioprotezione contestuale">
+          <Card index="3" title="Radioprotezione (Item G)" done={quality.quiz !== null}>
             <p className="text-[12px] leading-snug">
               Sul torace PA dell&apos;adulto, aumentare il kVp del 15% a parità di annerimento permette di:
             </p>
-            <div className="mt-1 grid gap-1">
+            <div className="mt-1 grid grid-cols-2 gap-1">
               <Pick on={quality.quiz === "rule15"} onClick={() => onQuality({ quiz: "rule15" })}>
                 Dimezzare circa i mAs
               </Pick>
@@ -225,10 +235,27 @@ export function StationQuality({
   );
 }
 
-function Card({ title, children }: { title: string; children: ReactNode }) {
+function Card({
+  index,
+  title,
+  done,
+  children,
+}: {
+  index: string;
+  title: string;
+  done: boolean;
+  children: ReactNode;
+}) {
   return (
-    <section className="rounded-lg border border-[#2A486D] bg-[#111D30] p-2">
-      <h3 className="font-display text-[13px] font-bold">{title}</h3>
+    <section className="shrink-0 rounded-lg border border-[#2A486D] bg-[#111D30] p-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="font-display text-[12px] font-bold">
+          {index}. {title}
+        </h3>
+        <span className={`shrink-0 text-[10px] ${done ? "text-[#6BA3DE]" : "text-[#F39C12]"}`}>
+          {done ? "Completato ✓" : "Da compilare"}
+        </span>
+      </div>
       {children}
     </section>
   );

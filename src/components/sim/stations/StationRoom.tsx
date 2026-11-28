@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Room3DViewport } from "@/components/sim/Room3DViewport";
-import { FieldStep, Guide, Pick } from "@/components/sim/stations/controls";
+import { FieldStep, Pick } from "@/components/sim/stations/controls";
 import { primaryBtn } from "@/components/ui/buttons";
 import {
   CENTER_X_MAX_CM,
@@ -34,160 +34,190 @@ export function StationRoom({
   onNext: () => void;
 }) {
   const hint = mode === "guided";
+  const posture =
+    technique.respiration === "INSP" &&
+    (technique.projection === "LL" || technique.decubitus === "SUPINO" || technique.shouldersRolledForward);
+  const geometry =
+    Math.abs(technique.patientRotationDeg) <= 3 &&
+    Math.abs(technique.centeringOffsetXCm) <= 2 &&
+    Math.abs(technique.centeringOffsetYCm) <= 2 &&
+    technique.dff >= 170 &&
+    Math.abs(technique.tubeAngulationCCDeg) <= 3 &&
+    Math.abs(technique.tubeAngulationMLDeg) <= 3;
+  const collimation =
+    technique.collW >= 30 &&
+    technique.collW <= 43 &&
+    technique.collH >= 32 &&
+    technique.collH <= 43 &&
+    technique.markerSide !== "none";
+  const sentence = !posture
+    ? "Scegli postura, proiezione e apnea. In PA eretta, porta le spalle in avanti."
+    : !geometry
+      ? "Centra il raggio sul torace e tieni il tubo allineato al detettore."
+      : !collimation
+        ? "Collima sul campo utile del torace e applica il marker."
+        : "Sala pronta: esci e chiudi la porta piombata.";
+
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col gap-2 overflow-hidden">
       {hint ? (
-        <Guide text="Criteri: piano sagittale perpendicolare al detettore, DFF 180 cm per limitare l'ingrandimento cardiaco, scapole fuori dai campi polmonari." />
+        <div className="flex h-8 shrink-0 items-center gap-3 rounded-md border border-[#2A486D] bg-[#111D30] px-2.5">
+          <p className="min-w-0 flex-1 truncate text-[12px] text-[#E2E8F0]">{sentence}</p>
+          <PhaseDot on={posture} label="Postura" />
+          <PhaseDot on={geometry} label="Geometria" />
+          <PhaseDot on={collimation} label="Collimazione" />
+        </div>
       ) : null}
       <div className="grid min-h-0 flex-1 gap-2 overflow-hidden lg:grid-cols-[minmax(0,62%)_minmax(260px,1fr)]">
         <section className="h-full min-h-0 overflow-hidden rounded-xl border border-[#2A486D]">
           <Room3DViewport technique={technique} roomMode={mode === "guided" ? "training" : "exam"} />
         </section>
-        <aside className="min-h-0 overflow-y-auto rounded-xl border border-[#2A486D] bg-[#16253B] px-3 py-2 rx-scroll">
+        <aside className="flex min-h-0 flex-col overflow-y-auto rounded-xl border border-[#2A486D] bg-[#16253B] px-2.5 py-1 rx-scroll">
           <Group title="Postura e proiezione">
-            <Row>
+            <div className="grid grid-cols-2 gap-1">
               <Pick on={technique.decubitus === "ORTOSTATISMO"} onClick={() => onTechnique({ decubitus: "ORTOSTATISMO" })}>
                 Ortostatismo
               </Pick>
               <Pick on={technique.decubitus === "SUPINO"} onClick={() => onTechnique({ decubitus: "SUPINO" })}>
                 Supino
               </Pick>
-            </Row>
-            <Row>
+            </div>
+            <div className="grid grid-cols-3 gap-1">
               {(["PA", "AP", "LL"] as Projection[]).map((projection) => (
                 <Pick key={projection} on={technique.projection === projection} onClick={() => onTechnique({ projection })}>
                   {projection}
                 </Pick>
               ))}
-            </Row>
+            </div>
             <Pick
               on={technique.shouldersRolledForward}
-              title={hint ? "Antiversione: le scapole escono dai campi polmonari." : undefined}
+              title={hint ? "In PA le scapole escono dai campi polmonari." : undefined}
               onClick={() => onTechnique({ shouldersRolledForward: !technique.shouldersRolledForward })}
             >
-              {technique.shouldersRolledForward ? "Antiversione spalle: attiva" : "Antiversione spalle"}
+              {technique.shouldersRolledForward ? "Antiversione: attiva" : "Antiversione spalle"}
             </Pick>
-            <Row>
+            <div className="grid grid-cols-3 gap-1">
               {(
                 [
-                  ["INSP", "Apnea inspiratoria"],
-                  ["ESP", "Apnea espiratoria"],
-                  ["LIBERO", "Respiro libero"],
+                  ["INSP", "Inspirio"],
+                  ["ESP", "Espirio"],
+                  ["LIBERO", "Libero"],
                 ] as [Respiration, string][]
               ).map(([id, label]) => (
-                <Pick
-                  key={id}
-                  on={technique.respiration === id}
-                  title={hint && id === "INSP" ? "Apnea inspiratoria: abbassa i diaframmi e scopre le basi." : undefined}
-                  onClick={() => onTechnique({ respiration: id })}
-                >
+                <Pick key={id} on={technique.respiration === id} onClick={() => onTechnique({ respiration: id })}>
                   {label}
                 </Pick>
               ))}
-            </Row>
+            </div>
           </Group>
-          <Group title="Centratura e geometria del fascio">
+          <Group title="Geometria del fascio">
             <FieldStep
-              label="Rotazione paziente"
+              label="Rotazione"
               value={technique.patientRotationDeg}
               unit="°"
               digits={0}
               step={1}
               min={ROTATION_MIN_DEG}
               max={ROTATION_MAX_DEG}
+              center={0}
               onChange={(patientRotationDeg) => onTechnique({ patientRotationDeg })}
-              resetLabel="0°"
+              resetLabel="Rotazione a zero"
               onReset={() => onTechnique({ patientRotationDeg: 0 })}
-              hint={hint ? "Entro ±3° i capi clavicolari restano simmetrici." : undefined}
             />
+            <div className="grid grid-cols-2 gap-x-2">
+              <FieldStep
+                label="Centr. X"
+                value={technique.centeringOffsetXCm}
+                unit="cm"
+                digits={0}
+                step={1}
+                min={CENTER_X_MIN_CM}
+                max={CENTER_X_MAX_CM}
+                center={0}
+                onChange={(centeringOffsetXCm) => onTechnique({ centeringOffsetXCm })}
+                resetLabel="Centra X"
+                onReset={() => onTechnique({ centeringOffsetXCm: 0 })}
+              />
+              <FieldStep
+                label="Centr. Y"
+                value={technique.centeringOffsetYCm}
+                unit="cm"
+                digits={0}
+                step={1}
+                min={CENTER_Y_MIN_CM}
+                max={CENTER_Y_MAX_CM}
+                center={0}
+                onChange={(centeringOffsetYCm) => onTechnique({ centeringOffsetYCm })}
+                resetLabel="Centra Y"
+                onReset={() => onTechnique({ centeringOffsetYCm: 0 })}
+              />
+            </div>
             <FieldStep
-              label="Centratura X"
-              value={technique.centeringOffsetXCm}
-              unit="cm"
-              digits={0}
-              step={1}
-              min={CENTER_X_MIN_CM}
-              max={CENTER_X_MAX_CM}
-              onChange={(centeringOffsetXCm) => onTechnique({ centeringOffsetXCm })}
-              resetLabel="Centra"
-              onReset={() => onTechnique({ centeringOffsetXCm: 0 })}
-              hint={hint ? "Zero è il piano sagittale mediano." : undefined}
-            />
-            <FieldStep
-              label="Centratura Y"
-              value={technique.centeringOffsetYCm}
-              unit="cm"
-              digits={0}
-              step={1}
-              min={CENTER_Y_MIN_CM}
-              max={CENTER_Y_MAX_CM}
-              onChange={(centeringOffsetYCm) => onTechnique({ centeringOffsetYCm })}
-              resetLabel="Centra"
-              onReset={() => onTechnique({ centeringOffsetYCm: 0 })}
-              hint={hint ? "Il raggio centrale del torace PA cade su T7." : undefined}
-            />
-            <FieldStep
-              label="DFF / SID"
+              label="DFF"
               value={technique.dff}
               unit="cm"
               digits={0}
               step={5}
               min={SID_MIN_CM}
               max={SID_MAX_CM}
+              center={180}
               onChange={(dff) => onTechnique({ dff })}
-              resetLabel="180"
+              resetLabel="DFF di riferimento torace eretto"
               onReset={() => onTechnique({ dff: 180 })}
-              hint={hint ? "180 cm riduce l'ingrandimento della silhouette cardiaca." : undefined}
             />
-            <FieldStep
-              label="Angolazione CC"
-              value={technique.tubeAngulationCCDeg}
-              unit="°"
-              digits={0}
-              step={1}
-              min={TUBE_CC_MIN_DEG}
-              max={TUBE_CC_MAX_DEG}
-              onChange={(tubeAngulationCCDeg) => onTechnique({ tubeAngulationCCDeg })}
-              resetLabel="0°"
-              onReset={() => onTechnique({ tubeAngulationCCDeg: 0 })}
-            />
-            <FieldStep
-              label="Angolazione ML"
-              value={technique.tubeAngulationMLDeg}
-              unit="°"
-              digits={0}
-              step={1}
-              min={TUBE_ML_MIN_DEG}
-              max={TUBE_ML_MAX_DEG}
-              onChange={(tubeAngulationMLDeg) => onTechnique({ tubeAngulationMLDeg })}
-              resetLabel="0°"
-              onReset={() => onTechnique({ tubeAngulationMLDeg: 0 })}
-              hint={hint ? "Oltre 5° con griglia inserita compare il cutoff laterale." : undefined}
-            />
-            <FieldStep
-              label="Collimazione L"
-              value={technique.collW}
-              unit="cm"
-              digits={0}
-              step={1}
-              min={COLL_MIN_CM}
-              max={COLL_MAX_CM}
-              onChange={(collW) => onTechnique({ collW })}
-              hint={hint ? "Il campo include gli apici e i recessi costofrenici, non l'intero ricevitore." : undefined}
-            />
-            <FieldStep
-              label="Collimazione H"
-              value={technique.collH}
-              unit="cm"
-              digits={0}
-              step={1}
-              min={COLL_MIN_CM}
-              max={COLL_MAX_CM}
-              onChange={(collH) => onTechnique({ collH })}
-            />
+            <div className="grid grid-cols-2 gap-x-2">
+              <FieldStep
+                label="Ang. CC"
+                value={technique.tubeAngulationCCDeg}
+                unit="°"
+                digits={0}
+                step={1}
+                min={TUBE_CC_MIN_DEG}
+                max={TUBE_CC_MAX_DEG}
+                center={0}
+                onChange={(tubeAngulationCCDeg) => onTechnique({ tubeAngulationCCDeg })}
+                resetLabel="Angolo CC a zero"
+                onReset={() => onTechnique({ tubeAngulationCCDeg: 0 })}
+              />
+              <FieldStep
+                label="Ang. ML"
+                value={technique.tubeAngulationMLDeg}
+                unit="°"
+                digits={0}
+                step={1}
+                min={TUBE_ML_MIN_DEG}
+                max={TUBE_ML_MAX_DEG}
+                center={0}
+                onChange={(tubeAngulationMLDeg) => onTechnique({ tubeAngulationMLDeg })}
+                resetLabel="Angolo ML a zero"
+                onReset={() => onTechnique({ tubeAngulationMLDeg: 0 })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-x-2">
+              <FieldStep
+                label="Coll. L"
+                value={technique.collW}
+                unit="cm"
+                digits={0}
+                step={1}
+                min={COLL_MIN_CM}
+                max={COLL_MAX_CM}
+                onChange={(collW) => onTechnique({ collW })}
+              />
+              <FieldStep
+                label="Coll. H"
+                value={technique.collH}
+                unit="cm"
+                digits={0}
+                step={1}
+                min={COLL_MIN_CM}
+                max={COLL_MAX_CM}
+                onChange={(collH) => onTechnique({ collH })}
+              />
+            </div>
           </Group>
-          <Group title="Marker anatomico">
-            <Row>
+          <Group title="Marker">
+            <div className="grid grid-cols-3 gap-1">
               {(
                 [
                   ["none", "Nessuno"],
@@ -199,7 +229,7 @@ export function StationRoom({
                   {label}
                 </Pick>
               ))}
-            </Row>
+            </div>
           </Group>
         </aside>
       </div>
@@ -212,15 +242,20 @@ export function StationRoom({
   );
 }
 
-function Group({ title, children }: { title: string; children: ReactNode }) {
+function PhaseDot({ on, label }: { on: boolean; label: string }) {
   return (
-    <div className="border-b border-[#2A486D] py-2">
-      <p className="text-[11px] tracking-[0.12em] text-[#9FB3C8] uppercase">{title}</p>
-      <div className="mt-1 space-y-1">{children}</div>
-    </div>
+    <span className={`shrink-0 text-[10px] ${on ? "text-[#6BA3DE]" : "text-[#9FB3C8]"}`}>
+      <span className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${on ? "bg-[#6BA3DE]" : "bg-[#2A486D]"}`} />
+      {label}
+    </span>
   );
 }
 
-function Row({ children }: { children: ReactNode }) {
-  return <div className="grid grid-cols-3 gap-1">{children}</div>;
+function Group({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="border-b border-[#2A486D] py-1 last:border-b-0">
+      <p className="text-[10px] tracking-[0.12em] text-[#9FB3C8] uppercase">{title}</p>
+      <div className="mt-0.5 space-y-0.5">{children}</div>
+    </div>
+  );
 }

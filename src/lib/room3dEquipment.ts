@@ -15,6 +15,7 @@ export type RoomEquipment = {
   beam: THREE.Mesh;
   field: THREE.LineLoop;
   laser: THREE.LineSegments;
+  laserGlow: THREE.Mesh;
   centralRay: THREE.Line;
   focus: THREE.Mesh;
   bladeLeft: THREE.Mesh;
@@ -154,16 +155,17 @@ export function createEquipment(scene: THREE.Scene, look: StudioLook, track: Tra
 
   const table = new THREE.Group();
   scene.add(table);
-  const pedestal = box(track, [36, 70, 28], look.medicalWhite, 0, 40, 0);
+  const pedestal = box(track, [36, 70, 36], look.anthracite, 0, 40, 16);
   pedestal.castShadow = true;
-  const pedalL = box(track, [10, 1.2, 6], look.anthracite, -16, 2, 16);
-  const pedalR = box(track, [10, 1.2, 6], look.anthracite, 16, 2, 16);
-  const top = box(track, [210, 2.4, 72], look.carbon, 0, 82, 0);
-  const railL = box(track, [196, 2, 2.2], look.brushed, 0, 84.2, 34);
-  const railR = box(track, [196, 2, 2.2], look.brushed, 0, 84.2, -34);
-  const mattress = box(track, [188, 1.6, 58], look.medicalWhite, 0, 84.2, 0);
-  const pillow = box(track, [28, 4, 22], look.medicalWhite, 0, 87, -62);
-  table.add(pedestal, pedalL, pedalR, top, railL, railR, mattress, pillow);
+  const pedalL = box(track, [10, 1.2, 6], look.anthracite, -16, 2, 28);
+  const pedalR = box(track, [10, 1.2, 6], look.anthracite, 16, 2, 28);
+  const top = box(track, [78, 2.2, 272], look.carbon, 0, 82, 16);
+  const railL = box(track, [2.2, 2, 258], look.brushed, 37, 84, 16);
+  const railR = box(track, [2.2, 2, 258], look.brushed, -37, 84, 16);
+  const mattress = box(track, [64, 1.5, 250], look.slate, 0, 84.1, 16);
+  const pillow = box(track, [36, 3.2, 22], look.slate, 0, 86.2, -92);
+  const bolster = box(track, [32, 2.2, 16], look.slate, 0, 85.6, 78);
+  table.add(pedestal, pedalL, pedalR, top, railL, railR, mattress, pillow, bolster);
   table.visible = false;
 
   const ceilingRail = box(track, [16, 6, 300], look.brushed, 0, 236, -40);
@@ -279,6 +281,22 @@ export function createEquipment(scene: THREE.Scene, look: StudioLook, track: Tra
   const laser = new THREE.LineSegments(laserGeo, look.laser);
   laser.frustumCulled = false;
   scene.add(laser);
+  const laserGlow = new THREE.Mesh(
+    track(new THREE.CircleGeometry(3.6, 28)),
+    own(
+      new THREE.MeshBasicMaterial({
+        color: 0xff3b30,
+        transparent: true,
+        opacity: 0.42,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+      }),
+    ),
+  );
+  laserGlow.frustumCulled = false;
+  laserGlow.renderOrder = 5;
+  scene.add(laserGlow);
 
   const rayGeo = track(new THREE.BufferGeometry());
   rayGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(6), 3));
@@ -298,6 +316,7 @@ export function createEquipment(scene: THREE.Scene, look: StudioLook, track: Tra
     beam,
     field,
     laser,
+    laserGlow,
     centralRay,
     focus,
     bladeLeft,

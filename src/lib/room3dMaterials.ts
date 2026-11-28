@@ -6,6 +6,7 @@ export type StudioLook = {
   brushed: THREE.MeshStandardMaterial;
   anthracite: THREE.MeshStandardMaterial;
   carbon: THREE.MeshStandardMaterial;
+  slate: THREE.MeshStandardMaterial;
   leadGlass: THREE.MeshPhysicalMaterial;
   fresnelSkin: THREE.ShaderMaterial;
   examSkin: THREE.MeshStandardMaterial;
@@ -45,9 +46,10 @@ precision highp float;
 varying vec3 vNormal;
 varying vec3 vView;
 void main() {
-  float fres = pow(1.0 - abs(dot(normalize(vNormal), normalize(vView))), 2.4);
-  vec3 edge = vec3(0.486, 0.753, 1.0);
-  gl_FragColor = vec4(edge, fres * 0.92);
+  float fres = pow(1.0 - abs(dot(normalize(vNormal), normalize(vView))), 2.15);
+  vec3 core = vec3(0.102, 0.200, 0.322);
+  vec3 edge = vec3(0.408, 0.710, 1.0);
+  gl_FragColor = vec4(mix(core, edge, fres), mix(0.28, 0.92, fres));
 }
 `;
 
@@ -87,9 +89,9 @@ function canvasTexture(width: number, height: number, paint: (ctx: CanvasRenderi
 
 function carbonMap(): THREE.CanvasTexture {
   const texture = canvasTexture(64, 64, (ctx) => {
-    ctx.fillStyle = "#1B2636";
+    ctx.fillStyle = "#c5ced8";
     ctx.fillRect(0, 0, 64, 64);
-    ctx.strokeStyle = "#2A3C52";
+    ctx.strokeStyle = "#f4f7fb";
     ctx.lineWidth = 1;
     for (let i = -64; i < 128; i += 4) {
       ctx.beginPath();
@@ -200,9 +202,9 @@ export function createStudioLook(renderer: THREE.WebGLRenderer): StudioLook {
     clearcoatRoughness: 0.22,
   });
   const brushed = new THREE.MeshStandardMaterial({
-    color: 0x9eb0c4,
-    roughness: 0.32,
-    metalness: 0.85,
+    color: 0x8fa3b8,
+    roughness: 0.34,
+    metalness: 0.82,
   });
   const anthracite = new THREE.MeshStandardMaterial({
     color: 0x1b2636,
@@ -211,9 +213,14 @@ export function createStudioLook(renderer: THREE.WebGLRenderer): StudioLook {
   });
   const carbonMat = new THREE.MeshStandardMaterial({
     map: carbon,
-    color: 0x1b2636,
-    roughness: 0.48,
-    metalness: 0.4,
+    color: 0x1b2432,
+    roughness: 0.42,
+    metalness: 0.25,
+  });
+  const slate = new THREE.MeshStandardMaterial({
+    color: 0x273447,
+    roughness: 0.74,
+    metalness: 0.05,
   });
   const leadGlass = new THREE.MeshPhysicalMaterial({
     color: 0x1a3348,
@@ -230,14 +237,14 @@ export function createStudioLook(renderer: THREE.WebGLRenderer): StudioLook {
     depthWrite: false,
   });
   const examSkin = new THREE.MeshStandardMaterial({
-    color: 0xc8b6a6,
-    roughness: 0.62,
+    color: 0xd4c8be,
+    roughness: 0.58,
     metalness: 0.02,
   });
   const gown = new THREE.MeshStandardMaterial({
-    color: 0x233a56,
-    roughness: 0.85,
-    metalness: 0.02,
+    color: 0x2a3e59,
+    roughness: 0.82,
+    metalness: 0.03,
   });
   const bone = new THREE.MeshStandardMaterial({
     color: 0xede6d6,
@@ -252,7 +259,7 @@ export function createStudioLook(renderer: THREE.WebGLRenderer): StudioLook {
     depthWrite: false,
   });
   const heart = new THREE.MeshStandardMaterial({
-    color: 0x8d4548,
+    color: 0x7a3040,
     roughness: 0.5,
     transparent: true,
     opacity: 0.55,
@@ -267,7 +274,7 @@ export function createStudioLook(renderer: THREE.WebGLRenderer): StudioLook {
     side: THREE.DoubleSide,
   });
   const field = new THREE.LineBasicMaterial({ color: 0xf39c12 });
-  const laser = new THREE.LineBasicMaterial({ color: 0xf39c12 });
+  const laser = new THREE.LineBasicMaterial({ color: 0xff3b30 });
   const ray = new THREE.LineBasicMaterial({ color: 0x6ba3de });
   const mark = new THREE.MeshBasicMaterial({ color: 0xf39c12 });
   const chamber = new THREE.MeshBasicMaterial({
@@ -324,6 +331,7 @@ export function createStudioLook(renderer: THREE.WebGLRenderer): StudioLook {
     brushed,
     anthracite,
     carbonMat,
+    slate,
     leadGlass,
     fresnelSkin,
     examSkin,
@@ -349,6 +357,7 @@ export function createStudioLook(renderer: THREE.WebGLRenderer): StudioLook {
     brushed,
     anthracite,
     carbon: carbonMat,
+    slate,
     leadGlass,
     fresnelSkin,
     examSkin,

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ViewerPanel, type ViewerTool } from "@/components/console/ViewerPanel";
 import { Room3DViewport } from "@/components/sim/Room3DViewport";
 import { FieldStep, Guide, Pick } from "@/components/sim/stations/controls";
 import { exposeBtn, primaryBtn, secondaryBtn } from "@/components/ui/buttons";
 import { formatNum } from "@/lib/number";
+import { playExposureCue } from "@/lib/rxAudio";
 import { aecBlocksExposure, DRL_CHEST_PA } from "@/lib/rxPhysics";
 import type {
   AecDensityStep,
@@ -73,19 +74,27 @@ export function StationConsole({
   onNext: () => void;
 }) {
   const [camera, setCamera] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "prep" | "beam">("idle");
+  const timers = useRef<number[]>([]);
+  useEffect(() => {
+    const pending = timers.current;
+    return () => pending.forEach((id) => window.clearTimeout(id));
+  }, []);
   const shot = shots[selectedIndex] ?? null;
   const aec = technique.exposureMode === "aec";
   const atLimit = shots.length >= 3;
-  const blocked = !doorClosed || aecBlocksExposure(technique) || atLimit || acquiring;
+  const blocked = !doorClosed || aecBlocksExposure(technique) || atLimit || acquiring || phase !== "idle";
   const reason = !doorClosed
     ? "Chiudi porta sala per abilitare"
     : aecBlocksExposure(technique)
       ? "Seleziona almeno una camera AEC"
       : atLimit
         ? "Limite di tre scatti raggiunto"
-        : acquiring
-          ? "Erogazione in corso"
-          : "Eroga RX";
+        : phase === "prep"
+          ? "Preparazione anodo…"
+          : phase === "beam" || acquiring
+            ? "RAGGI X IN CORSO"
+            : "Eroga RX";
   const dose = shot?.dosimetry ?? null;
   const drl = shot?.drlDapDGyCm2 ?? DRL_CHEST_PA.dapDGyCm2;
 
@@ -95,7 +104,16 @@ export function StationConsole({
         <Guide text="Regola del 15%: +15% di kVp permette di dimezzare circa i mAs. Ogni 5 cm di spessore in più chiedono un aggiustamento di esposizione." />
       ) : null}
       <div className="grid min-h-0 flex-1 gap-[10px] overflow-hidden lg:grid-cols-[minmax(0,1.3fr)_minmax(260px,340px)]">
-        <section className="flex h-full min-h-0 flex-col overflow-hidden">
+        <section className="relative flex h-full min-h-0 flex-col overflow-hidden">
+          {phase !== "idle" ? (
+            <div
+              className={`pointer-events-none absolute top-14 left-1/2 z-30 -translate-x-1/2 rounded-md px-3 py-1 font-mono text-[12px] tracking-[0.14em] ${
+                phase === "beam" ? "bg-[#F39C12] text-[#0B1320]" : "border border-[#2A486D] bg-[#111D30] text-[#F8FAFC]"
+              }`}
+            >
+              {phase === "prep" ? "Preparazione anodo…" : "RAGGI X IN CORSO"}
+            </div>
+          ) : null}
           <ViewerPanel
             clinical={clinical}
             technique={technique}
@@ -250,7 +268,22 @@ export function StationConsole({
           </button>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" disabled={blocked} onClick={onExpose} className={exposeBtn}>
+          <button
+            type="button"
+            disabled={blocked}
+            onClick={() => {
+              playExposureCue();
+              setPhase("prep");
+              timers.current.push(window.setTimeout(() => setPhase("beam"), 180));
+              timers.current.push(
+                window.setTimeout(() => {
+                  setPhase("idle");
+                  onExpose();
+                }, 350),
+              );
+            }}
+            className={exposeBtn}
+          >
             {reason}
           </button>
           <button type="button" disabled={shots.length < 1} onClick={onNext} className={primaryBtn}>

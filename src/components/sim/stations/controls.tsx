@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { formatNum } from "@/lib/number";
 
 export function Pick({
@@ -18,10 +19,10 @@ export function Pick({
       type="button"
       title={title}
       onClick={onClick}
-      className={`rounded-lg border px-2.5 py-1.5 text-left text-[12px] leading-snug ${
+      className={`rounded-md border px-2 py-1 text-left text-[11px] leading-tight ${
         on
-          ? "border-[#F8FAFC] bg-[#F8FAFC] font-medium text-[#1E324E]"
-          : "border-[#2A486D] text-[#F8FAFC] hover:border-[#6BA3DE]"
+          ? "border-[#6BA3DE] bg-[#1E3A5F] font-medium text-white"
+          : "border-[#2A486D] text-[#C5D4E4] hover:border-[#6BA3DE]"
       }`}
     >
       {children}
@@ -37,6 +38,7 @@ export function FieldStep({
   step,
   min,
   max,
+  center,
   onChange,
   resetLabel,
   onReset,
@@ -49,6 +51,7 @@ export function FieldStep({
   step: number;
   min: number;
   max: number;
+  center?: number;
   onChange: (value: number) => void;
   resetLabel?: string;
   onReset?: () => void;
@@ -58,32 +61,68 @@ export function FieldStep({
     const raw = Math.round((value + dir * step) * 10) / 10;
     onChange(Math.min(max, Math.max(min, raw)));
   };
+  const span = Math.max(0.001, max - min);
+  const marker = ((value - min) / span) * 100;
+  const origin = center === undefined ? null : ((center - min) / span) * 100;
   return (
-    <div className="border-b border-[#2A486D] py-1.5" title={hint}>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] text-[#9FB3C8]">{label}</span>
-        <span className="font-mono text-[13px] tabular-nums">
-          {formatNum(value, digits)} {unit}
-        </span>
-      </div>
-      <div className="mt-1 flex gap-1">
-        <StepButton label="−" onClick={() => next(-1)} />
-        <StepButton label="+" onClick={() => next(1)} />
-        {resetLabel && onReset ? <StepButton label={resetLabel} onClick={onReset} wide /> : null}
-      </div>
-      {hint ? <p className="mt-1 text-[10px] leading-snug text-[#6BA3DE]">{hint}</p> : null}
+    <div className="flex h-[34px] items-center gap-1" title={hint}>
+      <span className="w-14 shrink-0 truncate text-[11px] text-[#9FB3C8]">{label}</span>
+      <span className="w-11 shrink-0 text-right font-mono text-[11px] tabular-nums text-[#F8FAFC]">
+        {formatNum(value, digits)}
+        {unit}
+      </span>
+      <span className="relative mx-0.5 h-1 min-w-6 flex-1 rounded-full bg-[#0B1320]">
+        {origin !== null ? (
+          <span className="absolute top-[-2px] h-2 w-px bg-[#2A486D]" style={{ left: `${origin}%` }} />
+        ) : null}
+        <span className="absolute top-[-1px] h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-[#6BA3DE]" style={{ left: `${marker}%` }} />
+      </span>
+      <HoldButton label="−" title={`Diminuisci ${label}`} onStep={() => next(-1)} />
+      <HoldButton label="+" title={`Aumenta ${label}`} onStep={() => next(1)} />
+      {onReset ? (
+        <button
+          type="button"
+          title={resetLabel ?? "Reset"}
+          onClick={onReset}
+          className="h-7 shrink-0 rounded-md border border-[#2A486D] bg-[#111D30] px-1.5 text-[11px] text-[#F8FAFC] hover:border-[#6BA3DE]"
+        >
+          ↺
+        </button>
+      ) : null}
     </div>
   );
 }
 
-function StepButton({ label, onClick, wide = false }: { label: string; onClick: () => void; wide?: boolean }) {
+function HoldButton({ label, title, onStep }: { label: string; title: string; onStep: () => void }) {
+  const step = useRef(onStep);
+  const delay = useRef<number | null>(null);
+  const repeat = useRef<number | null>(null);
+  useEffect(() => {
+    step.current = onStep;
+  }, [onStep]);
+  const stop = () => {
+    if (delay.current !== null) window.clearTimeout(delay.current);
+    if (repeat.current !== null) window.clearInterval(repeat.current);
+    delay.current = null;
+    repeat.current = null;
+  };
   return (
     <button
       type="button"
-      onClick={onClick}
-      className={`h-8 rounded-md border border-[#2A486D] bg-[#111D30] text-[12px] text-[#F8FAFC] hover:border-[#6BA3DE] ${
-        wide ? "px-2" : "w-8"
-      }`}
+      title={title}
+      aria-label={title}
+      onPointerDown={(event) => {
+        event.preventDefault();
+        step.current();
+        delay.current = window.setTimeout(() => {
+          repeat.current = window.setInterval(() => step.current(), 70);
+        }, 260);
+      }}
+      onPointerUp={stop}
+      onPointerLeave={stop}
+      onPointerCancel={stop}
+      onContextMenu={(event) => event.preventDefault()}
+      className="h-6 w-6 shrink-0 rounded-md border border-[#2A486D] bg-[#111D30] text-[13px] text-[#F8FAFC] hover:border-[#6BA3DE]"
     >
       {label}
     </button>

@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import type { ViewerTool } from "@/components/console/ViewerPanel";
 import { MODE_LABEL, type Acceptance, type QualityReview, type StationId } from "@/components/sim/examSession";
+import { QuickGuideDialog } from "@/components/sim/QuickGuideDialog";
 import { StationAcceptance } from "@/components/sim/stations/StationAcceptance";
 import { StationConsole } from "@/components/sim/stations/StationConsole";
 import { StationQuality } from "@/components/sim/stations/StationQuality";
 import { StationRoom } from "@/components/sim/stations/StationRoom";
 import { ghostBtn } from "@/components/ui/buttons";
 import { warmupDrr } from "@/lib/drrEngine";
+import { isRxAudioEnabled, setRxAudioEnabled, subscribeRxAudio } from "@/lib/rxAudio";
 import type { Analysis, ClinicalCase, ExposureShot, GrayWindow, RejectReason, SimMode, Technique } from "@/types/rx";
 
 const STEPS = [
@@ -90,6 +92,8 @@ export function SimulationScreen({
     return () => window.clearTimeout(id);
   }, []);
 
+  const [guide, setGuide] = useState(false);
+  const audioOn = useSyncExternalStore(subscribeRxAudio, isRxAudioEnabled, () => true);
   const seconds = mode === "exam" ? Math.max(0, 600 - elapsedSec) : elapsedSec;
   const clock = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
   const view = { gray, zoom, panX, panY, overlay, tool, onGray, onView, onResetView };
@@ -112,6 +116,17 @@ export function SimulationScreen({
           <span className="ml-auto font-mono text-sm tabular-nums">
             {mode === "exam" && seconds === 0 ? "Tempo scaduto" : clock}
           </span>
+          <button
+            type="button"
+            aria-pressed={audioOn}
+            onClick={() => setRxAudioEnabled(!audioOn)}
+            className={ghostBtn}
+          >
+            {audioOn ? "Audio on" : "Audio off"}
+          </button>
+          <button type="button" onClick={() => setGuide(true)} className={ghostBtn}>
+            ? Guida
+          </button>
           <button type="button" onClick={onExit} className={ghostBtn}>
             Esci
           </button>
@@ -199,6 +214,7 @@ export function SimulationScreen({
         />
       ) : null}
       </div>
+      {guide ? <QuickGuideDialog onClose={() => setGuide(false)} /> : null}
     </div>
   );
 }
