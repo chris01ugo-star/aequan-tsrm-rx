@@ -17,6 +17,14 @@ export const DEFAULT_TECHNIQUE: Technique = {
   grid: false,
   collW: 43,
   collH: 43,
+  patientRotationDeg: 8,
+  shouldersRolledForward: false,
+  centeringOffsetXCm: 2,
+  centeringOffsetYCm: -4,
+  tubeAngulationCCDeg: 0,
+  tubeAngulationMLDeg: 0,
+  gridMode: "none",
+  markerSide: "none",
 };
 
 /** Confronto mostrato solo dopo la consegna. Non va in scheda clinica. */
@@ -27,8 +35,12 @@ export const CHEST_PA_REFERENCE: { parameter: string; standard: string }[] = [
   { parameter: "kVp", standard: "110–125" },
   { parameter: "DFF", standard: "180 cm" },
   { parameter: "Macchia focale", standard: "Fine 0,6 mm" },
-  { parameter: "Griglia", standard: "Inserita 12:1" },
+  { parameter: "Griglia", standard: "Focalizzata 180 cm, 12:1" },
   { parameter: "Collimazione", standard: "Volume toracico, non il campo 43×43" },
+  { parameter: "Rotazione", standard: "Entro ±3°" },
+  { parameter: "Spalle", standard: "Ruotate in avanti" },
+  { parameter: "Marker", standard: "DX presente" },
+  { parameter: "DI", standard: "−1 … +1" },
 ];
 
 export const CASES: ClinicalCase[] = [

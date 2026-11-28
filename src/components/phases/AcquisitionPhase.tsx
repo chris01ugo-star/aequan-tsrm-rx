@@ -4,6 +4,7 @@ import { ParameterPanel } from "@/components/console/ParameterPanel";
 import { ViewerPanel, type ViewerTool } from "@/components/console/ViewerPanel";
 import { TickMeter } from "@/components/ui/TickMeter";
 import { formatNum } from "@/lib/number";
+import { sameTechnique } from "@/lib/rxPhysics";
 import type {
   Analysis,
   ClinicalCase,
@@ -66,18 +67,7 @@ export function AcquisitionPhase({
   const [tab, setTab] = useState<"patient" | "position">("patient");
   const shot = shots[selectedIndex] ?? null;
   const latest = shots[shots.length - 1] ?? null;
-  const dirty = Boolean(latest && shot === latest && (
-    latest.technique.kvp !== technique.kvp ||
-    latest.technique.mas !== technique.mas ||
-    latest.technique.dff !== technique.dff ||
-    latest.technique.focal !== technique.focal ||
-    latest.technique.grid !== technique.grid ||
-    latest.technique.collW !== technique.collW ||
-    latest.technique.collH !== technique.collH ||
-    latest.technique.projection !== technique.projection ||
-    latest.technique.decubitus !== technique.decubitus ||
-    latest.technique.respiration !== technique.respiration
-  ));
+  const dirty = Boolean(latest && shot === latest && !sameTechnique(latest.technique, technique));
   const atLimit = shots.length >= MAX_SHOTS;
 
   return (

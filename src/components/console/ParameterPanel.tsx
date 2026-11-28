@@ -1,7 +1,8 @@
 "use client";
 
 import { formatNum } from "@/lib/number";
-import { DRL_CHEST_PA } from "@/lib/rxPhysics";
+import { describeDeviationIndex, DRL_CHEST_PA } from "@/lib/rxPhysics";
+import { COLL_MAX_CM, COLL_MIN_CM, SID_MAX_CM, SID_MIN_CM, SID_STEP_CM } from "@/lib/rxGeometry";
 import type { Analysis, Technique } from "@/types/rx";
 
 type ParameterPanelProps = {
@@ -12,8 +13,11 @@ type ParameterPanelProps = {
 
 export function ParameterPanel({ technique, analysis, onChange }: ParameterPanelProps) {
   const dose = analysis.dosimetry;
+  const di = describeDeviationIndex(dose.di);
+  const diText = `${dose.di > 0 ? "+" : ""}${formatNum(dose.di, 1)}`;
+  const diColor = di.tone === "ok" ? "#6BA3DE" : di.tone === "warn" ? "#F39C12" : "#EF4444";
   return (
-    <aside className="flex h-full min-h-0 w-full flex-col bg-panel">
+    <aside className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col bg-panel">
       <div className="flex h-8 shrink-0 items-center border-b border-line px-2">
         <span className="text-[10px] tracking-[0.14em] text-muted uppercase">
           Console di acquisizione
@@ -44,9 +48,9 @@ export function ParameterPanel({ technique, analysis, onChange }: ParameterPanel
           label="DFF"
           unit="cm"
           value={technique.dff}
-          min={100}
-          max={200}
-          step={10}
+          min={SID_MIN_CM}
+          max={SID_MAX_CM}
+          step={SID_STEP_CM}
           digits={0}
           onChange={(dff) => onChange({ dff })}
         />
@@ -61,19 +65,20 @@ export function ParameterPanel({ technique, analysis, onChange }: ParameterPanel
         />
         <ToggleRow
           label="Griglia antidiffusione"
-          value={technique.grid ? "IN" : "OUT"}
+          value={technique.gridMode}
           options={[
-            { value: "IN" as const, label: "INSERITA 12:1" },
-            { value: "OUT" as const, label: "RIMOSSA" },
+            { value: "none" as const, label: "RIMOSSA" },
+            { value: "focused_100" as const, label: "FOC. 100" },
+            { value: "focused_180" as const, label: "FOC. 180" },
           ]}
-          onChange={(value) => onChange({ grid: value === "IN" })}
+          onChange={(gridMode) => onChange({ gridMode, grid: gridMode !== "none" })}
         />
         <Stepper
           label="Collimazione larghezza"
           unit="cm"
           value={technique.collW}
-          min={20}
-          max={43}
+          min={COLL_MIN_CM}
+          max={COLL_MAX_CM}
           step={1}
           digits={0}
           onChange={(collW) => onChange({ collW })}
@@ -82,8 +87,8 @@ export function ParameterPanel({ technique, analysis, onChange }: ParameterPanel
           label="Collimazione altezza"
           unit="cm"
           value={technique.collH}
-          min={20}
-          max={43}
+          min={COLL_MIN_CM}
+          max={COLL_MAX_CM}
           step={1}
           digits={0}
           onChange={(collH) => onChange({ collH })}
@@ -111,15 +116,33 @@ export function ParameterPanel({ technique, analysis, onChange }: ParameterPanel
             ratio={dose.esdMgy / DRL_CHEST_PA.esdMgy}
             limitLabel={`DRL ${formatNum(DRL_CHEST_PA.esdMgy, 2)}`}
           />
-          <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-[9px] tracking-[0.14em] text-muted">EI</span>
-            <span className="font-mono text-[13px] tabular-nums text-cyan-clin">
-              {formatNum(dose.ei, 0)}
-              <span className="ml-2 text-[9px] text-muted">
-                BANDA {DRL_CHEST_PA.eiMin}–{DRL_CHEST_PA.eiMax}
-              </span>
-            </span>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <div>
+              <div className="flex items-baseline justify-between">
+                <span className="text-[9px] tracking-[0.14em] text-muted">EI</span>
+                <span className="font-mono text-[13px] tabular-nums text-cyan-clin">
+                  {formatNum(dose.ei, 0)}
+                </span>
+              </div>
+              <p className="font-mono text-[9px] text-muted">
+                target {dose.eiTarget}
+              </p>
+            </div>
+            <div>
+              <div className="flex items-baseline justify-between">
+                <span className="text-[9px] tracking-[0.14em] text-muted">DI</span>
+                <span className="font-mono text-[13px] tabular-nums" style={{ color: diColor }}>
+                  {diText}
+                </span>
+              </div>
+              <p className="font-mono text-[9px]" style={{ color: diColor }}>
+                {di.label} · IEC 62494-1
+              </p>
+            </div>
           </div>
+          <p className="mt-1 font-mono text-[9px] text-muted">
+            Bucky ×{formatNum(dose.buckyFactor, 0)} · t {formatNum(dose.exposureTimeMs, 0)} ms
+          </p>
           <ul className="mt-2 space-y-1">
             {analysis.warnings.slice(0, 3).map((warning) => (
               <li

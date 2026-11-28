@@ -4,7 +4,7 @@ import { useState } from "react";
 import { GeometryPanel } from "@/components/console/GeometryPanel";
 import { ParameterPanel } from "@/components/console/ParameterPanel";
 import { ViewerPanel, type ViewerTool } from "@/components/console/ViewerPanel";
-import { RisSummary } from "@/components/library/RisSummary";
+import { Room3DViewport } from "@/components/sim/Room3DViewport";
 import { exposeBtn, primaryBtn } from "@/components/ui/buttons";
 import { formatNum } from "@/lib/number";
 import { sameTechnique } from "@/lib/rxPhysics";
@@ -68,6 +68,7 @@ export function SimulationScreen({
   onReview: () => void;
 }) {
   const [tab, setTab] = useState<"room" | "position">("room");
+  const [layout, setLayout] = useState<"console" | "split">("console");
   const shot = shots[selectedIndex] ?? null;
   const latest = shots[shots.length - 1] ?? null;
   const dirty = Boolean(latest && shot === latest && !sameTechnique(latest.technique, technique));
@@ -89,6 +90,15 @@ export function SimulationScreen({
           {clock}
         </div>
         <div className="flex items-center justify-end gap-1">
+          <div className="mr-1 hidden items-center gap-1 lg:flex">
+            <span className="text-[10px] tracking-[0.12em] text-[#9FB3C8] uppercase">Layout</span>
+            <LayoutButton active={layout === "console"} onClick={() => setLayout("console")}>
+              Console
+            </LayoutButton>
+            <LayoutButton active={layout === "split"} onClick={() => setLayout("split")}>
+              Split 3D + PACS
+            </LayoutButton>
+          </div>
           <button type="button" onClick={onBriefing} className="rounded-md px-[10px] py-[6px] text-[13px] text-[#9FB3C8] hover:bg-[#1E324E] hover:text-[#F8FAFC]">
             Briefing RIS
           </button>
@@ -106,28 +116,53 @@ export function SimulationScreen({
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-[10px] lg:grid-cols-[1.15fr_1.55fr_1.15fr]">
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#2A486D] bg-[#16253B] shadow-sm">
-          <div className="m-2 flex rounded-2xl border border-[#2A486D] bg-[#111D30] p-1">
-            <Tab on={tab === "room"} onClick={() => setTab("room")}>Sala & Paziente</Tab>
+      <div
+        className={`grid min-h-0 flex-1 grid-cols-1 gap-[10px] ${
+          layout === "split"
+            ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(220px,280px)]"
+            : "lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1.3fr)_minmax(220px,0.92fr)]"
+        }`}
+      >
+        <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-[#2A486D] bg-[#16253B] shadow-sm">
+          <div className="m-2 flex shrink-0 rounded-2xl border border-[#2A486D] bg-[#111D30] p-1">
+            <Tab on={tab === "room"} onClick={() => setTab("room")}>Sala 3D</Tab>
             <Tab on={tab === "position"} onClick={() => setTab("position")}>Posizionamento</Tab>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto rx-scroll px-2 pb-2">
-            {tab === "room" ? (
+          <div className="flex min-h-0 flex-1 flex-col">
+            {layout === "split" ? (
               <>
-                <div className="mb-2 rounded-xl bg-[#111D30] p-2">
-                  <RisSummary clinical={clinical} />
-                  <p className="mt-2 text-xs text-[#F8FAFC]">{clinical.indication}</p>
+                <div className={tab === "room" ? "min-h-0 flex-1" : "min-h-[42%] flex-1"}>
+                  <Room3DViewport technique={technique} />
                 </div>
-                <GeometryPanel technique={technique} onChange={onTechnique} pane="room" />
+                {tab === "position" ? (
+                  <div className="min-h-0 max-h-[46%] overflow-y-auto border-t border-[#2A486D] rx-scroll">
+                    <GeometryPanel
+                      technique={technique}
+                      onChange={onTechnique}
+                      pane="position"
+                      onOpenRoom={() => setTab("room")}
+                    />
+                  </div>
+                ) : null}
               </>
+            ) : tab === "room" ? (
+              <div className="min-h-0 flex-1">
+                <Room3DViewport technique={technique} />
+              </div>
             ) : (
-              <GeometryPanel technique={technique} onChange={onTechnique} pane="position" />
+              <div className="min-h-0 flex-1 overflow-y-auto rx-scroll">
+                <GeometryPanel
+                  technique={technique}
+                  onChange={onTechnique}
+                  pane="position"
+                  onOpenRoom={() => setTab("room")}
+                />
+              </div>
             )}
           </div>
         </section>
 
-        <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-[#2A486D] bg-[#16253B] shadow-sm">
+        <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-[#2A486D] bg-[#16253B] shadow-sm">
           <ViewerPanel
             clinical={clinical}
             technique={technique}
@@ -150,20 +185,27 @@ export function SimulationScreen({
           />
         </section>
 
-        <section className="min-h-0 overflow-hidden rounded-2xl border border-[#2A486D] bg-[#16253B] shadow-sm">
+        <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-[#2A486D] bg-[#16253B] shadow-sm">
           <ParameterPanel technique={technique} analysis={analysis} onChange={onTechnique} />
         </section>
       </div>
 
       <footer className="flex shrink-0 items-center justify-between gap-3 rounded-xl border border-[#2A486D] bg-[#16253B]/90 px-4 py-2.5">
-        <div className="font-mono text-xs tabular-nums text-[#F8FAFC]">
+        <div className="min-w-0 font-mono text-xs tabular-nums text-[#F8FAFC]">
           Scatti {shots.length} / {MAX_SHOTS}
           <span className="ml-3">Dose cumulativa {formatNum(cumulativeDap, 2)} dGy·cm²</span>
         </div>
-        <p className="hidden text-center text-[11px] text-[#9FB3C8] sm:block">
+        <p className="hidden text-center text-[11px] text-[#9FB3C8] xl:block">
           Solo uso didattico · Non dispositivo medico
         </p>
-        <div className="flex gap-2">
+        <div className="flex shrink-0 gap-2">
+          <button
+            type="button"
+            onClick={() => setLayout((current) => (current === "split" ? "console" : "split"))}
+            className="hidden rounded-md border border-[#2A486D] px-2.5 py-1.5 text-[12px] text-[#F8FAFC] hover:border-[#6BA3DE] lg:inline-flex"
+          >
+            {layout === "split" ? "Layout console" : "Espandi 3D"}
+          </button>
           <button type="button" onClick={onExpose} disabled={acquiring || atLimit} className={exposeBtn}>
             {acquiring ? "Acquisizione…" : atLimit ? "Limite 3 scatti" : "Avvia acquisizione RX"}
           </button>
@@ -183,6 +225,28 @@ function Tab({ on, onClick, children }: { on: boolean; onClick: () => void; chil
       onClick={onClick}
       className={`flex-1 rounded-full px-[14px] py-[6px] text-xs font-medium ${
         on ? "bg-[#F8FAFC] text-[#1E324E]" : "text-[#9FB3C8] hover:text-[#F8FAFC]"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function LayoutButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full px-2.5 py-1 text-[11px] ${
+        active ? "bg-[#F8FAFC] text-[#1E324E]" : "text-[#9FB3C8] hover:text-[#F8FAFC]"
       }`}
     >
       {children}

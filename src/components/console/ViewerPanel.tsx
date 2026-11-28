@@ -90,6 +90,8 @@ export function ViewerPanel({
 
   const fieldLeft = ((1 - technique.collW / 43) / 2) * 100;
   const fieldTop = ((1 - technique.collH / 43) / 2) * 100;
+  const shiftX = (technique.centeringOffsetXCm / 43) * 100;
+  const shiftY = (technique.centeringOffsetYCm / 43) * 100;
 
   function onPointerDown(event: PointerEvent<HTMLDivElement>) {
     if (!shot) return;
@@ -158,6 +160,9 @@ export function ViewerPanel({
                 <CenteringField
                   left={fieldLeft}
                   top={fieldTop}
+                  shiftX={shiftX}
+                  shiftY={shiftY}
+                  rotation={technique.patientRotationDeg}
                   lateral={technique.projection === "LL"}
                 />
               )}
@@ -201,7 +206,7 @@ export function ViewerPanel({
         <Corner className="bottom-2 left-2" lines={bottomLeft(shown, shot)} />
         <Corner
           className="right-2 bottom-2 text-right"
-          lines={bottomRight(gray, zoom, dose.ei, Boolean(shot))}
+          lines={bottomRight(gray, zoom, dose.ei, dose.di, Boolean(shot))}
         />
 
         {dirty && shot ? (
@@ -221,7 +226,7 @@ export function ViewerPanel({
         ) : null}
       </div>
 
-      <div className="flex h-9 shrink-0 items-center gap-1.5 overflow-x-auto border-t border-line bg-panel px-2">
+      <div className="flex min-h-9 w-full min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 border-t border-line bg-panel px-2 py-1">
         <span className="text-[9px] tracking-[0.14em] text-muted">W</span>
         <input
           className="rx-range w-16"
@@ -250,7 +255,7 @@ export function ViewerPanel({
         <span className="w-12 font-mono text-[11px] tabular-nums text-cyan-clin">
           {formatNum(gray.windowLevel, 0)}
         </span>
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-1">
           <ToolButton active={tool === "wl"} onClick={() => onView({ tool: "wl" })}>
             W/L
           </ToolButton>
@@ -360,12 +365,18 @@ function topLeft(clinical: ClinicalCase, shot: ExposureShot | null): string[] {
 }
 
 function topRight(technique: Technique): string[] {
-  const side = technique.projection === "LL" ? "SX" : "DX";
+  const marker = technique.markerSide === "none" ? "MARKER —" : technique.markerSide;
   return [
-    side,
+    marker,
     `${technique.projection}  ${technique.decubitus === "ORTOSTATISMO" ? "ORTOSTATISMO" : "SUPINO"}`,
     RESPIRATION_LABEL[technique.respiration],
   ];
+}
+
+function gridLabel(technique: Technique): string {
+  if (technique.gridMode === "focused_100") return "GRIGLIA FOC. 100 cm";
+  if (technique.gridMode === "focused_180") return "GRIGLIA FOC. 180 cm";
+  return "NO GRIGLIA";
 }
 
 function bottomLeft(technique: Technique, shot: ExposureShot | null): string[] {
@@ -373,7 +384,7 @@ function bottomLeft(technique: Technique, shot: ExposureShot | null): string[] {
     shot ? "ACQUISIZIONE" : "PRE-ESPOSIZIONE / CENTRATURA",
     `${formatNum(technique.kvp, 0)} kVp    ${formatNum(technique.mas, 1)} mAs`,
     `DFF ${formatNum(technique.dff, 0)} cm`,
-    `${technique.focal === "FINE" ? "FF 0,6 mm" : "FF 1,2 mm"}   ${technique.grid ? "GRIGLIA 12:1" : "NO GRIGLIA"}`,
+    `${technique.focal === "FINE" ? "FF 0,6 mm" : "FF 1,2 mm"}   ${gridLabel(technique)}`,
     `COLL ${formatNum(technique.collW, 0)} × ${formatNum(technique.collH, 0)} cm`,
   ];
 }
@@ -382,12 +393,14 @@ function bottomRight(
   gray: GrayWindow,
   zoom: number,
   ei: number,
+  di: number,
   acquired: boolean,
 ): string[] {
+  const diText = `${di > 0 ? "+" : ""}${formatNum(di, 1)}`;
   return [
     `W ${formatNum(gray.windowWidth, 0)}   L ${formatNum(gray.windowLevel, 0)}`,
     `ZOOM ${formatNum(zoom, 1)}×`,
-    acquired ? `EI ${formatNum(ei, 0)}` : "EI —",
+    acquired ? `EI ${formatNum(ei, 0)}   DI ${diText}` : "EI —   DI —",
     gray.invert ? "INVERSIONE ON" : "MONOCHROME2",
     "NON DIAGNOSTICO",
   ];
@@ -435,16 +448,23 @@ function ToolButton({
 function CenteringField({
   left,
   top,
+  shiftX,
+  shiftY,
+  rotation,
   lateral,
 }: {
   left: number;
   top: number;
+  shiftX: number;
+  shiftY: number;
+  rotation: number;
   lateral: boolean;
 }) {
   const clip = `inset(${top}% ${left}% ${top}% ${left}%)`;
+  const guideShift = { transform: `translate(${shiftX}%, ${shiftY}%) rotate(${rotation * 0.35}deg)` };
   return (
     <div className="absolute inset-0 bg-black">
-      <ChestGuide lateral={lateral} className="opacity-20" />
+      <ChestGuide lateral={lateral} className="opacity-20" style={guideShift} />
       <div
         className="absolute border border-[#F39C12] bg-[rgba(243,156,18,0.08)]"
         style={{ left: `${left}%`, top: `${top}%`, right: `${left}%`, bottom: `${top}%` }}
@@ -452,7 +472,7 @@ function CenteringField({
         <div className="absolute top-1/2 right-0 left-0 h-px bg-[rgba(107,163,222,0.85)]" />
         <div className="absolute top-0 bottom-0 left-1/2 w-px bg-[rgba(107,163,222,0.85)]" />
       </div>
-      <ChestGuide lateral={lateral} className="opacity-80" style={{ clipPath: clip }} />
+      <ChestGuide lateral={lateral} className="opacity-80" style={{ clipPath: clip, ...guideShift }} />
       <div className="pointer-events-none absolute inset-x-0 top-8 flex justify-center px-6">
         <div className="max-w-md border border-line bg-obsidian/95 px-3 py-1.5 text-center">
           <p className="font-display text-[12px] leading-snug text-ice">

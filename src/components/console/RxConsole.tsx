@@ -9,6 +9,7 @@ import { DashboardShell, type DashView } from "@/components/shell/DashboardShell
 import { ReviewDialog } from "@/components/sim/ReviewDialog";
 import { SimulationScreen } from "@/components/sim/SimulationScreen";
 import { CASES, DEFAULT_TECHNIQUE, getCase } from "@/data/cases";
+import { clampTechnique } from "@/lib/rxGeometry";
 import { evaluateExam } from "@/lib/evaluation";
 import { formatClock } from "@/lib/number";
 import {
@@ -207,10 +208,12 @@ export function RxConsole() {
           acquiring={acquiring}
           elapsedSec={elapsed}
           cumulativeDap={cumulativeDap}
-          onTechnique={(partial) => setTechnique((current) => ({ ...current, ...partial }))}
+          onTechnique={(partial) =>
+            setTechnique((current) => clampTechnique({ ...current, ...partial }))
+          }
           onSelectShot={setSelectedIndex}
           onResetView={viewProps.onReset}
-          onResetTechnique={() => setTechnique(DEFAULT_TECHNIQUE)}
+          onResetTechnique={() => setTechnique(clampTechnique(DEFAULT_TECHNIQUE))}
           onBriefing={() => setBriefingOverSim(true)}
           onExpose={expose}
           onReview={() => {

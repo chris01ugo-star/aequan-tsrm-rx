@@ -101,6 +101,20 @@ export function ReportView({
           <p className="mt-3 text-sm leading-relaxed text-[#F8FAFC]">{evaluation.summary}</p>
         </section>
 
+        <section className="border-b border-[#2A486D] px-4 py-4 sm:px-6">
+          <h2 className="font-display text-base font-bold">Corrispondenza EUR 16260</h2>
+          <p className="mt-1 text-xs text-[#9FB3C8]">Causa geometrica → evidenza radiografica</p>
+          <ul className="mt-3 space-y-2">
+            {evaluation.geometryEvidence.map((row) => (
+              <li key={row.cause} className="text-sm leading-snug">
+                <span className="text-[#6BA3DE]">{row.cause}</span>
+                <span className="text-[#9FB3C8]"> → </span>
+                <span>{row.evidence}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
         <section>
           {evaluation.sections.map((section) => {
             const percent = Math.round((section.score / section.max) * 100);
@@ -177,7 +191,7 @@ export function ReportView({
             <span>Parametro</span><span>Eseguito</span><span>Riferimento</span>
           </div>
           {CHEST_PA_REFERENCE.map((row) => {
-            const done = executedValue(row.parameter, shot.technique);
+            const done = executedValue(row.parameter, shot.technique, shot.dosimetry.di);
             return (
               <div key={row.parameter} className="grid grid-cols-[1fr_1fr_1.2fr] border-t border-[#1E324E] py-1 font-mono text-xs">
                 <span className="text-[#9FB3C8]">{row.parameter}</span>
@@ -238,7 +252,11 @@ function FindingRow({ finding }: { finding: Finding }) {
   );
 }
 
-function executedValue(parameter: string, technique: Technique): { text: string; aligned: boolean } {
+function executedValue(
+  parameter: string,
+  technique: Technique,
+  di: number,
+): { text: string; aligned: boolean } {
   const breath =
     technique.respiration === "INSP"
       ? "Apnea inspiratoria"
@@ -264,8 +282,32 @@ function executedValue(parameter: string, technique: Technique): { text: string;
         text: technique.focal === "FINE" ? "Fine 0,6 mm" : "Grossa 1,2 mm",
         aligned: technique.focal === "FINE",
       };
-    case "Griglia":
-      return { text: technique.grid ? "Inserita 12:1" : "Rimossa", aligned: technique.grid };
+    case "Griglia": {
+      const text =
+        technique.gridMode === "focused_180"
+          ? "Focalizzata 180 cm"
+          : technique.gridMode === "focused_100"
+            ? "Focalizzata 100 cm"
+            : "Rimossa";
+      return { text, aligned: technique.gridMode === "focused_180" && technique.dff >= 160 };
+    }
+    case "Rotazione":
+      return {
+        text: `${technique.patientRotationDeg > 0 ? "+" : ""}${formatNum(technique.patientRotationDeg, 0)}°`,
+        aligned: Math.abs(technique.patientRotationDeg) <= 3,
+      };
+    case "Spalle":
+      return {
+        text: technique.shouldersRolledForward ? "Ruotate avanti" : "Neutre",
+        aligned: technique.shouldersRolledForward,
+      };
+    case "Marker":
+      return { text: technique.markerSide === "none" ? "Assente" : technique.markerSide, aligned: technique.markerSide === "DX" };
+    case "DI":
+      return {
+        text: `${di > 0 ? "+" : ""}${formatNum(di, 1)}`,
+        aligned: di >= -1 && di <= 1,
+      };
     default:
       return {
         text: `${formatNum(technique.collW, 0)}×${formatNum(technique.collH, 0)} cm`,

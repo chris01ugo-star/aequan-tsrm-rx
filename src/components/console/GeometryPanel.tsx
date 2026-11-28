@@ -1,6 +1,21 @@
 "use client";
 
-import type { Decubitus, Projection, Respiration, Technique } from "@/types/rx";
+import { formatNum } from "@/lib/number";
+import {
+  CENTER_X_MAX_CM,
+  CENTER_X_MIN_CM,
+  CENTER_Y_MAX_CM,
+  CENTER_Y_MIN_CM,
+  computeRoomMetrics,
+  ROTATION_MAX_DEG,
+  ROTATION_MIN_DEG,
+  toRoomGeometry,
+  TUBE_CC_MAX_DEG,
+  TUBE_CC_MIN_DEG,
+  TUBE_ML_MAX_DEG,
+  TUBE_ML_MIN_DEG,
+} from "@/lib/rxGeometry";
+import type { Decubitus, MarkerSide, Projection, Respiration, Technique } from "@/types/rx";
 
 type GeometryPanelProps = {
   technique: Technique;
@@ -24,14 +39,22 @@ const RESPIRATION: { value: Respiration; label: string }[] = [
   { value: "LIBERO", label: "LIBERO" },
 ];
 
+const MARKERS: { value: MarkerSide; label: string }[] = [
+  { value: "none", label: "NESSUNO" },
+  { value: "DX", label: "DX" },
+  { value: "SX", label: "SX" },
+];
+
 export function GeometryPanel({
   technique,
   onChange,
   pane,
-}: GeometryPanelProps & { pane: "room" | "position" }) {
+  onOpenRoom,
+}: GeometryPanelProps & { pane: "room" | "position"; onOpenRoom?: () => void }) {
   if (pane === "room") {
     return <RoomSchematic technique={technique} />;
   }
+  const metrics = computeRoomMetrics(toRoomGeometry(technique));
   return (
     <div>
       <Segment
@@ -46,36 +69,97 @@ export function GeometryPanel({
         options={DECUBITUS}
         onChange={(decubitus) => onChange({ decubitus })}
       />
+      <Slider
+        label="Rotazione assiale"
+        unit="°"
+        value={technique.patientRotationDeg}
+        min={ROTATION_MIN_DEG}
+        max={ROTATION_MAX_DEG}
+        step={1}
+        digits={0}
+        signed
+        onChange={(patientRotationDeg) => onChange({ patientRotationDeg })}
+      />
+      <Toggle
+        label="Spalle"
+        on={technique.shouldersRolledForward}
+        onLabel="RUOTATE AVANTI"
+        offLabel="NEUTRE"
+        onChange={(shouldersRolledForward) => onChange({ shouldersRolledForward })}
+      />
+      <Slider
+        label="Centratura X"
+        unit="cm"
+        value={technique.centeringOffsetXCm}
+        min={CENTER_X_MIN_CM}
+        max={CENTER_X_MAX_CM}
+        step={0.5}
+        digits={1}
+        signed
+        onChange={(centeringOffsetXCm) => onChange({ centeringOffsetXCm })}
+      />
+      <Slider
+        label="Centratura Y"
+        unit="cm"
+        value={technique.centeringOffsetYCm}
+        min={CENTER_Y_MIN_CM}
+        max={CENTER_Y_MAX_CM}
+        step={0.5}
+        digits={1}
+        signed
+        onChange={(centeringOffsetYCm) => onChange({ centeringOffsetYCm })}
+      />
+      <Slider
+        label="Angolazione tubo CC"
+        unit="°"
+        value={technique.tubeAngulationCCDeg}
+        min={TUBE_CC_MIN_DEG}
+        max={TUBE_CC_MAX_DEG}
+        step={1}
+        digits={0}
+        signed
+        onChange={(tubeAngulationCCDeg) => onChange({ tubeAngulationCCDeg })}
+      />
+      <Slider
+        label="Angolazione tubo ML"
+        unit="°"
+        value={technique.tubeAngulationMLDeg}
+        min={TUBE_ML_MIN_DEG}
+        max={TUBE_ML_MAX_DEG}
+        step={1}
+        digits={0}
+        signed
+        onChange={(tubeAngulationMLDeg) => onChange({ tubeAngulationMLDeg })}
+      />
       <Segment
-        label="Istruzione respiratoria"
+        label="Respiro"
         value={technique.respiration}
         options={RESPIRATION}
         onChange={(respiration) => onChange({ respiration })}
       />
-      <p className="px-2 py-2 text-[11px] leading-relaxed text-muted">
-        {geometryNote(technique)}
+      <Segment
+        label="Marker"
+        value={technique.markerSide}
+        options={MARKERS}
+        onChange={(markerSide) => onChange({ markerSide })}
+      />
+      <p className="px-2 py-2 font-mono text-[10px] leading-relaxed text-[#9FB3C8] tabular-nums">
+        OID {formatNum(metrics.oidCm, 1)} cm · M {formatNum(metrics.magnification, 2)} · Ug{" "}
+        {formatNum(metrics.ugMm, 2)} mm
       </p>
+      {onOpenRoom ? (
+        <div className="px-2 pb-2">
+          <button
+            type="button"
+            onClick={onOpenRoom}
+            className="h-8 w-full rounded-lg border border-[#2A486D] bg-[#111D30] text-[11px] text-[#F8FAFC] hover:border-[#6BA3DE]"
+          >
+            Apri sala 3D
+          </button>
+        </div>
+      ) : null}
     </div>
   );
-}
-
-function geometryNote(technique: Technique): string {
-  if (technique.projection === "LL") {
-    return "LL: incidenza complementare. Il quesito di questo caso chiede il PA.";
-  }
-  if (technique.decubitus === "SUPINO") {
-    return "Clinostatismo: il tubo è sopra il tavolo. Anche con PA selezionato il fascio reale è AP.";
-  }
-  if (technique.projection === "AP") {
-    return "AP eretto: cuore lontano dal detettore, magnificazione della silhouette.";
-  }
-  if (technique.respiration === "LIBERO") {
-    return "Respiro libero: atteso mosso di diaframma e basi all'esposizione.";
-  }
-  if (technique.respiration === "ESP") {
-    return "Espirio: volumi ridotti, cuore più trasverso. Il caso richiede inspirio.";
-  }
-  return "PA, ortostatismo, apnea inspiratoria: geometria di riferimento del torace.";
 }
 
 function Segment<T extends string>({
@@ -114,6 +198,96 @@ function Segment<T extends string>({
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function Slider({
+  label,
+  unit,
+  value,
+  min,
+  max,
+  step,
+  digits,
+  signed,
+  onChange,
+}: {
+  label: string;
+  unit: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  digits: number;
+  signed?: boolean;
+  onChange: (value: number) => void;
+}) {
+  const shown = formatNum(value, digits);
+  const text = signed && value > 0 ? `+${shown}` : shown;
+  return (
+    <div className="border-b border-[#2A486D] px-2 py-1.5">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[9px] tracking-[0.14em] text-[#9FB3C8] uppercase">{label}</span>
+        <span className="font-mono text-[12px] tabular-nums text-[#6BA3DE]">
+          {text}
+          <span className="ml-1 text-[9px] text-[#9FB3C8]">{unit}</span>
+        </span>
+      </div>
+      <input
+        className="rx-range mt-1 w-full"
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        aria-label={label}
+        onChange={(event) => onChange(Number(event.target.value))}
+      />
+    </div>
+  );
+}
+
+function Toggle({
+  label,
+  on,
+  onLabel,
+  offLabel,
+  onChange,
+}: {
+  label: string;
+  on: boolean;
+  onLabel: string;
+  offLabel: string;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <div className="border-b border-[#2A486D] px-2 py-1.5">
+      <div className="mb-1 text-[9px] tracking-[0.14em] text-[#9FB3C8] uppercase">{label}</div>
+      <div className="flex">
+        <button
+          type="button"
+          onClick={() => onChange(false)}
+          className={`h-8 flex-1 rounded-lg border text-[10px] ${
+            on
+              ? "border-[#2A486D] bg-[#111D30] text-[#F8FAFC]"
+              : "border-[#F8FAFC] bg-[#F8FAFC] text-[#1E324E]"
+          }`}
+        >
+          {offLabel}
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(true)}
+          className={`ml-1 h-8 flex-1 rounded-lg border text-[10px] ${
+            on
+              ? "border-[#F8FAFC] bg-[#F8FAFC] text-[#1E324E]"
+              : "border-[#2A486D] bg-[#111D30] text-[#F8FAFC]"
+          }`}
+        >
+          {onLabel}
+        </button>
       </div>
     </div>
   );
