@@ -19,9 +19,10 @@ export function projectPoint(
   y: number,
   geo: GeometryFactors,
 ): { x: number; y: number } {
+  const shift = Math.tan((geo.tubeAngulationCCDeg * Math.PI) / 180) * geo.oidCm;
   return {
-    x: 0.5 + (x - 0.5) * geo.bodyMag,
-    y: 0.5 + (y - 0.5) * geo.vert,
+    x: 0.5 + (x - 0.5) * geo.bodyMag + geo.centeringOffsetXCm / 43,
+    y: 0.5 + (y - 0.5) * geo.vert + (geo.centeringOffsetYCm - shift) / 43,
   };
 }
 
@@ -88,15 +89,22 @@ export function paintAttenuation(
   ctx.fillStyle = "#000000";
   ctx.fillRect(0, 0, w, h);
 
+  const shiftCm = Math.tan((geo.tubeAngulationCCDeg * Math.PI) / 180) * geo.oidCm;
   ctx.save();
+  ctx.translate((geo.centeringOffsetXCm / 43) * w, ((geo.centeringOffsetYCm - shiftCm) / 43) * h);
   ctx.translate(w / 2, h / 2);
   ctx.scale(geo.bodyMag, geo.vert);
   ctx.translate(-w / 2, -h / 2);
-  if (geo.beam === "LL") paintLateral(ctx, w, h);
+  if (geo.beam === "LL") paintLateral(ctx, w, h, geo);
   else paintFrontal(ctx, w, h, geo);
   ctx.restore();
 
-  drawLeadMarker(ctx, w, h, geo.beam === "LL" ? "SX" : "DX");
+  paintAnodeHeel(ctx, w, h, geo);
+  paintGridCutoff(ctx, w, h, geo);
+  applyGeometricBlur(ctx, w, h, geo.ugMm);
+  if (geo.markerSide === "DX" || geo.markerSide === "SX") {
+    drawLeadMarker(ctx, w, h, geo.markerSide, geo.collW, geo.collH);
+  }
 }
 
 function paintFrontal(
@@ -105,10 +113,11 @@ function paintFrontal(
   h: number,
   geo: GeometryFactors,
 ): void {
+  const rot = geo.patientRotationDeg / 30;
   const rightLung = lungPath(w, h, "right");
   const leftLung = lungPath(w, h, "left");
 
-  drawArms(ctx, w, h);
+  drawArms(ctx, w, h, geo.shouldersRolledForward);
   drawTorso(ctx, w, h);
 
   ctx.fillStyle = "#101114";
@@ -119,32 +128,38 @@ function paintFrontal(
   drawVessels(ctx, w, h, leftLung, 0.6, 0.45, 1, 17);
   drawLesion(ctx, w, h, rightLung);
   drawRibs(ctx, w, h);
-  drawClavicles(ctx, w, h, geo.beam === "AP");
-  if (geo.beam === "AP") drawScapulae(ctx, w, h);
+  drawClavicles(ctx, w, h, geo);
+  drawScapulae(ctx, w, h, geo.shouldersRolledForward);
   drawAbdomenDetails(ctx, w, h);
 
   ctx.save();
-  const hx = w * 0.585;
+  const hx = w * (0.585 + rot * 0.07);
   const hy = h * 0.5;
-  const extra = geo.heartMag / Math.max(geo.bodyMag, 0.2);
+  const extra = (geo.heartMag / Math.max(geo.bodyMag, 0.2)) * (1 + Math.abs(rot) * 0.12);
   ctx.translate(hx, hy);
-  ctx.scale(extra, extra);
+  ctx.scale(extra, extra * (1 - Math.abs(rot) * 0.04));
   ctx.translate(-hx, -hy);
-  drawHeart(ctx, w, h);
+  drawHeart(ctx, w, h, rot);
   ctx.restore();
 
-  drawSpine(ctx, w, h);
-  drawTrachea(ctx, w, h);
+  drawSpine(ctx, w, h, rot);
+  drawTrachea(ctx, w, h, rot);
   strokeDiaphragms(ctx, w, h);
 }
 
-function drawArms(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+function drawArms(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  rolled: boolean,
+): void {
   ctx.fillStyle = "#4e4e4e";
+  const tuck = rolled ? 0.02 : 0;
   ctx.beginPath();
-  ctx.ellipse(w * 0.055, h * 0.42, w * 0.045, h * 0.22, 0.08, 0, Math.PI * 2);
+  ctx.ellipse(w * (0.055 + tuck), h * 0.42, w * 0.045, h * 0.22, 0.08, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.ellipse(w * 0.945, h * 0.42, w * 0.045, h * 0.22, -0.08, 0, Math.PI * 2);
+  ctx.ellipse(w * (0.945 - tuck), h * 0.42, w * 0.045, h * 0.22, -0.08, 0, Math.PI * 2);
   ctx.fill();
 }
 
@@ -306,103 +321,167 @@ function drawClavicles(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
-  ap: boolean,
+  geo: GeometryFactors,
 ): void {
+  const ap = geo.beam === "AP";
+  const rot = geo.patientRotationDeg / 30;
+  const lordotic = -geo.tubeAngulationCCDeg * 0.0042;
   ctx.save();
   ctx.lineCap = "round";
   ctx.strokeStyle = "#d2d2d2";
   ctx.lineWidth = ap ? 8 : 6.5;
-  const lift = ap ? -0.035 : 0.015;
+  const lift = (ap ? -0.035 : 0.015) + lordotic;
+  const medialR = 0.48 + rot * 0.085;
+  const medialL = 0.52 + rot * 0.02;
   ctx.beginPath();
-  ctx.moveTo(w * 0.48, h * (0.16 + lift));
+  ctx.moveTo(w * medialR, h * (0.16 + lift));
   ctx.quadraticCurveTo(
-    w * 0.32,
-    h * (ap ? 0.145 : 0.205),
+    w * (0.32 + rot * 0.03),
+    h * ((ap ? 0.145 : 0.205) + lordotic),
     w * 0.15,
-    h * (ap ? 0.15 : 0.185),
+    h * ((ap ? 0.15 : 0.185) + lordotic * 0.4),
   );
   ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(w * 0.52, h * (0.155 + lift));
+  ctx.moveTo(w * medialL, h * (0.155 + lift));
   ctx.quadraticCurveTo(
-    w * 0.68,
-    h * (ap ? 0.14 : 0.2),
+    w * (0.68 + rot * 0.02),
+    h * ((ap ? 0.14 : 0.2) + lordotic),
     w * 0.85,
-    h * (ap ? 0.148 : 0.18),
+    h * ((ap ? 0.148 : 0.18) + lordotic * 0.4),
   );
   ctx.stroke();
   ctx.restore();
 }
 
-function drawScapulae(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+function drawScapulae(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  rolled: boolean,
+): void {
   ctx.save();
-  ctx.strokeStyle = "rgba(210,210,210,0.33)";
-  ctx.lineWidth = 11;
   ctx.lineCap = "round";
-  ctx.beginPath();
-  ctx.moveTo(w * 0.2, h * 0.24);
-  ctx.quadraticCurveTo(w * 0.15, h * 0.42, w * 0.2, h * 0.6);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(w * 0.8, h * 0.24);
-  ctx.quadraticCurveTo(w * 0.85, h * 0.42, w * 0.8, h * 0.6);
-  ctx.stroke();
+  if (rolled) {
+    ctx.strokeStyle = "rgba(214,214,214,0.28)";
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.07, h * 0.2);
+    ctx.quadraticCurveTo(w * 0.045, h * 0.36, w * 0.08, h * 0.5);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(w * 0.93, h * 0.2);
+    ctx.quadraticCurveTo(w * 0.955, h * 0.36, w * 0.92, h * 0.5);
+    ctx.stroke();
+  } else {
+    ctx.strokeStyle = "rgba(236,236,236,0.78)";
+    ctx.lineWidth = 15;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.23, h * 0.18);
+    ctx.quadraticCurveTo(w * 0.16, h * 0.34, w * 0.22, h * 0.52);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(w * 0.77, h * 0.18);
+    ctx.quadraticCurveTo(w * 0.84, h * 0.34, w * 0.78, h * 0.52);
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(255,255,255,0.45)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.25, h * 0.2);
+    ctx.quadraticCurveTo(w * 0.19, h * 0.34, w * 0.24, h * 0.48);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(w * 0.75, h * 0.2);
+    ctx.quadraticCurveTo(w * 0.81, h * 0.34, w * 0.76, h * 0.48);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
-function drawHeart(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+function drawHeart(ctx: CanvasRenderingContext2D, w: number, h: number, rot: number): void {
   const p = new Path2D();
-  p.moveTo(w * 0.47, h * 0.36);
-  p.bezierCurveTo(w * 0.4, h * 0.43, w * 0.415, h * 0.56, w * 0.455, h * 0.65);
-  p.bezierCurveTo(w * 0.52, h * 0.75, w * 0.66, h * 0.735, w * 0.735, h * 0.6);
-  p.bezierCurveTo(w * 0.8, h * 0.48, w * 0.74, h * 0.34, w * 0.62, h * 0.315);
-  p.bezierCurveTo(w * 0.55, h * 0.3, w * 0.5, h * 0.31, w * 0.47, h * 0.36);
+  const shift = rot * 0.045;
+  p.moveTo(w * (0.47 + shift), h * 0.36);
+  p.bezierCurveTo(
+    w * (0.4 + shift * 0.4),
+    h * 0.43,
+    w * (0.415 + shift * 0.5),
+    h * 0.56,
+    w * (0.455 + shift),
+    h * 0.65,
+  );
+  p.bezierCurveTo(
+    w * (0.52 + shift),
+    h * 0.75,
+    w * (0.66 + shift * 1.15),
+    h * 0.735,
+    w * (0.735 + shift * 0.8),
+    h * 0.6,
+  );
+  p.bezierCurveTo(
+    w * (0.8 + shift * 0.5),
+    h * 0.48,
+    w * (0.74 + shift * 0.4),
+    h * 0.34,
+    w * (0.62 + shift),
+    h * 0.315,
+  );
+  p.bezierCurveTo(w * (0.55 + shift), h * 0.3, w * (0.5 + shift), h * 0.31, w * (0.47 + shift), h * 0.36);
   p.closePath();
-  const g = ctx.createRadialGradient(w * 0.58, h * 0.5, 8, w * 0.58, h * 0.5, w * 0.2);
+  const g = ctx.createRadialGradient(
+    w * (0.58 + shift),
+    h * 0.5,
+    8,
+    w * (0.58 + shift),
+    h * 0.5,
+    w * 0.2,
+  );
   g.addColorStop(0, "rgba(176,176,176,0.94)");
   g.addColorStop(1, "rgba(128,128,128,0.9)");
   ctx.fillStyle = g;
   ctx.fill(p);
 
   ctx.beginPath();
-  ctx.ellipse(w * 0.57, h * 0.33, w * 0.026, h * 0.018, -0.5, 0, Math.PI * 2);
+  ctx.ellipse(w * (0.57 + shift), h * 0.33, w * 0.026, h * 0.018, -0.5, 0, Math.PI * 2);
   ctx.fillStyle = "rgba(186,186,186,0.55)";
   ctx.fill();
 }
 
-function drawSpine(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+function drawSpine(ctx: CanvasRenderingContext2D, w: number, h: number, rot: number): void {
+  const cx = 0.5 - rot * 0.055;
   ctx.save();
-  const g = ctx.createLinearGradient(w * 0.455, 0, w * 0.545, 0);
+  const g = ctx.createLinearGradient(w * (cx - 0.045), 0, w * (cx + 0.045), 0);
   g.addColorStop(0, "rgba(255,255,255,0)");
   g.addColorStop(0.35, "rgba(255,255,255,0.16)");
   g.addColorStop(0.5, "rgba(255,255,255,0.42)");
   g.addColorStop(0.65, "rgba(255,255,255,0.16)");
   g.addColorStop(1, "rgba(255,255,255,0)");
   ctx.fillStyle = g;
-  ctx.fillRect(w * 0.455, h * 0.12, w * 0.09, h * 0.78);
-  ctx.fillStyle = "rgba(255,255,255,0.22)";
+  ctx.fillRect(w * (cx - 0.045), h * 0.12, w * 0.09, h * 0.78);
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
   for (let i = 0; i < 12; i += 1) {
     const y = h * (0.18 + i * 0.055);
-    ctx.fillRect(w * 0.478, y, w * 0.044, h * 0.02);
+    ctx.fillRect(w * (cx - 0.012), y, w * 0.024, h * 0.016);
   }
   ctx.restore();
 }
 
-function drawTrachea(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+function drawTrachea(ctx: CanvasRenderingContext2D, w: number, h: number, rot: number): void {
+  const cx = 0.5 - rot * 0.03;
   ctx.save();
   ctx.strokeStyle = "rgba(8,8,8,0.82)";
   ctx.lineWidth = Math.max(4, w * 0.016);
   ctx.lineCap = "round";
   ctx.beginPath();
-  ctx.moveTo(w * 0.5, h * 0.045);
-  ctx.lineTo(w * 0.492, h * 0.3);
+  ctx.moveTo(w * cx, h * 0.045);
+  ctx.lineTo(w * (cx - 0.008), h * 0.3);
   ctx.stroke();
   ctx.lineWidth = Math.max(2, w * 0.008);
   ctx.beginPath();
-  ctx.moveTo(w * 0.492, h * 0.29);
-  ctx.lineTo(w * 0.44, h * 0.36);
-  ctx.moveTo(w * 0.492, h * 0.29);
-  ctx.lineTo(w * 0.56, h * 0.35);
+  ctx.moveTo(w * (cx - 0.008), h * 0.29);
+  ctx.lineTo(w * (cx - 0.06), h * 0.36);
+  ctx.moveTo(w * (cx - 0.008), h * 0.29);
+  ctx.lineTo(w * (cx + 0.068), h * 0.35);
   ctx.stroke();
   ctx.restore();
 }
@@ -432,7 +511,15 @@ function drawAbdomenDetails(ctx: CanvasRenderingContext2D, w: number, h: number)
   ctx.restore();
 }
 
-function paintLateral(ctx: CanvasRenderingContext2D, w: number, h: number): void {
+function paintLateral(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  geo: GeometryFactors,
+): void {
+  const rot = geo.patientRotationDeg / 40;
+  ctx.save();
+  ctx.translate(w * rot * 0.04, -geo.tubeAngulationCCDeg * h * 0.002);
   ctx.fillStyle = "#686868";
   ctx.beginPath();
   ctx.ellipse(w * 0.5, h * 0.5, w * 0.3, h * 0.4, 0, 0, Math.PI * 2);
@@ -508,24 +595,115 @@ function paintLateral(ctx: CanvasRenderingContext2D, w: number, h: number): void
   ctx.beginPath();
   ctx.ellipse(w * 0.36, h * 0.78, w * 0.04, h * 0.025, 0, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
 }
 
 function drawLeadMarker(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
-  text: string,
+  text: "DX" | "SX",
+  collW: number,
+  collH: number,
 ): void {
-  const x = w * 0.092;
-  const y = h * 0.128;
-  const bw = w * 0.062;
-  const bh = h * 0.034;
-  ctx.fillStyle = "#f3f3f3";
-  ctx.fillRect(x, y, bw, bh);
-  ctx.fillStyle = "#111111";
-  ctx.font = `700 ${Math.round(h * 0.02)}px ui-monospace, monospace`;
+  const fieldLeft = ((1 - collW / 43) / 2) * w;
+  const fieldTop = ((1 - collH / 43) / 2) * h;
+  const fieldRight = w - fieldLeft;
+  const bw = Math.max(28, w * 0.058);
+  const bh = Math.max(16, h * 0.03);
+  const margin = Math.max(6, w * 0.012);
+  const x = text === "DX" ? fieldLeft + margin : fieldRight - bw - margin;
+  const y = fieldTop + margin;
+  ctx.save();
+  ctx.fillStyle = "#f4f4f4";
+  ctx.strokeStyle = "#d7d7d7";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(x, y, bw, bh, 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#141414";
+  ctx.font = `700 ${Math.round(bh * 0.62)}px ui-monospace, monospace`;
+  ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(text, x + bw * 0.16, y + bh * 0.52);
+  ctx.fillText(text, x + bw / 2, y + bh / 2 + 0.5);
+  ctx.restore();
+}
+
+function paintAnodeHeel(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  geo: GeometryFactors,
+): void {
+  const amp = Math.min(0.22, geo.anodeHeel);
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  const gradient = ctx.createLinearGradient(0, 0, 0, h);
+  gradient.addColorStop(0, `rgba(255,255,255,${amp})`);
+  gradient.addColorStop(0.55, "rgba(255,255,255,0)");
+  gradient.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, w, h);
+  ctx.restore();
+}
+
+function paintGridCutoff(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  geo: GeometryFactors,
+): void {
+  const factor = geo.gridCutoff;
+  if (factor <= 0.02) return;
+  const leftEdge = ((1 - geo.collW / 43) / 2) * w;
+  const top = ((1 - geo.collH / 43) / 2) * h;
+  const fieldW = (geo.collW / 43) * w;
+  const fieldH = (geo.collH / 43) * h;
+  const asymmetry = geo.gridCutoffAsymmetry;
+  const leftGain = clamp01(factor * (1 - asymmetry * 0.85));
+  const rightGain = clamp01(factor * (1 + asymmetry * 0.85));
+  const band = fieldW * (0.16 + 0.2 * factor);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(leftEdge, top, fieldW, fieldH);
+  ctx.clip();
+  const left = ctx.createLinearGradient(leftEdge, 0, leftEdge + band, 0);
+  left.addColorStop(0, `rgba(255,255,255,${0.2 + leftGain * 0.75})`);
+  left.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = left;
+  ctx.fillRect(leftEdge, top, band, fieldH);
+  const right = ctx.createLinearGradient(leftEdge + fieldW, 0, leftEdge + fieldW - band, 0);
+  right.addColorStop(0, `rgba(255,255,255,${0.2 + rightGain * 0.75})`);
+  right.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = right;
+  ctx.fillRect(leftEdge + fieldW - band, top, band, fieldH);
+  ctx.restore();
+}
+
+function applyGeometricBlur(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  ugMm: number,
+): void {
+  const px = Math.min(2.8, ugMm * 9);
+  if (px < 0.35) return;
+  const copy = document.createElement("canvas");
+  copy.width = w;
+  copy.height = h;
+  const copyCtx = copy.getContext("2d");
+  if (!copyCtx) return;
+  copyCtx.drawImage(ctx.canvas, 0, 0);
+  ctx.save();
+  ctx.filter = `blur(${px.toFixed(2)}px)`;
+  ctx.drawImage(copy, 0, 0);
+  ctx.filter = "none";
+  ctx.restore();
+}
+
+function clamp01(value: number): number {
+  return Math.min(1, Math.max(0, value));
 }
 
 export function markerSide(beam: BeamGeometry): "DX" | "SX" {

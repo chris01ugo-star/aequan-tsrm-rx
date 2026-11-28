@@ -144,3 +144,16 @@ select.rx-select {
   transform-origin: left center;
   animation: rx-acquire 400ms linear forwards;
 }
+
+@keyframes rx-plate-in {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.rx-plate-in {
+  animation: rx-plate-in 280ms ease-out;
+}

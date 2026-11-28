@@ -9,6 +9,7 @@ export type SavedSession = {
   shots: number;
   cumulativeDap: number;
   savedAt: string;
+  rejects?: { shot: number; reason: string }[];
 };
 
 const KEY = "aequan.tsrm.sessions.v1";

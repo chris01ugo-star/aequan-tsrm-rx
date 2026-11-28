@@ -203,7 +203,7 @@ export function TirocinioView({
           </ol>
         </aside>
 
-        <section className={`${card} p-5 sm:p-7`}>
+        <section className={`${card} min-w-0 p-5 sm:p-7`}>
           {state.step === 0 ? (
             <Section step={0} title="Accesso" subtitle="Il codice di tirocinio è stato verificato.">
               <div className="rounded-xl border border-[#e7eaef] bg-[#f8fafd] p-5">
@@ -361,37 +361,33 @@ function Theory({
         </div>
       </header>
 
-      <div className="mt-6">
-        <div className={`grid gap-6 ${question.image ? "md:grid-cols-[minmax(0,1fr)_280px]" : ""}`}>
-          <fieldset>
-            <legend className="text-[18px] leading-snug font-semibold text-[#1f2b3b]">
-              <span className="mr-2 text-slate-400 tabular-nums">{index + 1}.</span>
-              {question.prompt}
-            </legend>
-            <div className="mt-5 space-y-3">
-              {question.options.map((option, optionIndex) => {
-                const selected = answers[question.id] === optionIndex;
-                return (
-                  <label
-                    key={option}
-                    className={`flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-[15px] transition ${
-                      selected ? "border-[#bcd2ee] bg-[#edf1f6]" : "border-[#dfe6ef] bg-white hover:bg-[#f8fafd]"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name={question.id}
-                      checked={selected}
-                      onChange={() => onAnswer(question.id, optionIndex)}
-                      className="h-[18px] w-[18px] accent-[#2d4f7a]"
-                    />
-                    {option}
-                  </label>
-                );
-              })}
-            </div>
-          </fieldset>
-          {question.image ? <CtImage /> : null}
+      <div className="mt-6 flex min-w-0 flex-col gap-4">
+        <p id={`prompt-${question.id}`} className="w-full text-[18px] leading-snug font-semibold text-[#1f2b3b]">
+          <span className="mr-2 text-slate-400 tabular-nums">{index + 1}.</span>
+          {question.prompt}
+        </p>
+        {question.image ? <CtImage /> : null}
+        <div role="radiogroup" aria-labelledby={`prompt-${question.id}`} className="flex w-full min-w-0 flex-col gap-3">
+          {question.options.map((option, optionIndex) => {
+            const selected = answers[question.id] === optionIndex;
+            return (
+              <label
+                key={option}
+                className={`flex w-full cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-[15px] transition ${
+                  selected ? "border-[#bcd2ee] bg-[#edf1f6]" : "border-[#dfe6ef] bg-white hover:bg-[#f8fafd]"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name={question.id}
+                  checked={selected}
+                  onChange={() => onAnswer(question.id, optionIndex)}
+                  className="h-[18px] w-[18px] shrink-0 accent-[#2d4f7a]"
+                />
+                <span className="min-w-0">{option}</span>
+              </label>
+            );
+          })}
         </div>
       </div>
 
@@ -609,8 +605,14 @@ function Colonnade() {
 
 function CtImage() {
   return (
-    <figure className="relative self-start overflow-hidden rounded-2xl bg-black">
-      <svg viewBox="0 0 280 210" className="h-auto w-full" role="img" aria-label="TC del torace, finestra polmonare, con nodulo nel lobo inferiore sinistro">
+    <figure className="w-full max-w-[360px] overflow-hidden rounded-xl border border-slate-200/80 bg-[#0A0F18]">
+      <svg
+        viewBox="0 0 280 210"
+        preserveAspectRatio="xMidYMid meet"
+        className="block h-auto max-h-[210px] w-full object-contain"
+        role="img"
+        aria-label="TC del torace, finestra polmonare, con nodulo nel lobo inferiore sinistro"
+      >
         <rect width="280" height="210" fill="#000" />
         <ellipse cx="140" cy="112" rx="128" ry="88" fill="#6b6b6b" />
         <ellipse cx="140" cy="112" rx="118" ry="80" fill="#8a8a8a" />
@@ -627,7 +629,9 @@ function CtImage() {
         <circle cx="194" cy="140" r="11" fill="#e4e4e4" />
         <circle cx="194" cy="140" r="11" fill="none" stroke="#f5f5f5" strokeWidth="1" strokeDasharray="2 2" />
       </svg>
-      <figcaption className="bg-[#111] px-3 py-1.5 text-[12px] text-white/70">TC torace, finestra polmonare</figcaption>
+      <figcaption className="border-t border-white/10 bg-[#111827] px-3 py-1.5 text-xs text-slate-300">
+        TC torace, finestra polmonare
+      </figcaption>
     </figure>
   );
 }
