@@ -218,6 +218,14 @@ export type ExposureShot = {
   timestampLabel: string;
   /** Compilato solo per gli scatti non consegnati. */
   rejectReason?: RejectReason | null;
+  /** Motore che ha prodotto il buffer. Assente = DRR volumetrico. */
+  source?: "drr" | "plate";
+  /** Riga dell'overlay DICOM. */
+  sourceLabel?: string;
+  /** DRL DAP del distretto, in dGy·cm². Solo per le lastre caricate. */
+  drlDapDGyCm2?: number;
+  /** Catenina o bottoni ancora sul paziente al momento dell'esposizione. */
+  foreignMetal?: boolean;
 };
 
 export type GrayWindow = {
@@ -297,6 +305,31 @@ export type Evaluation = {
   total: number;
   max: 30;
   verdict: string;
+  /** Fascia del Vademecum, es. `Fascia 25–27` o `30L · Eccellenza`. */
+  band: string;
+  blocked: boolean;
+  blocking: string[];
   summary: string;
   geometryEvidence: GeometryEvidence[];
+};
+
+export type SimMode = "guided" | "exam";
+
+export type QualityGrade = "adeguato" | "subottimale" | "inadeguato";
+
+export type ExamConduct = {
+  mode: SimMode;
+  modalityOk: boolean;
+  identityConfirmed: boolean;
+  pregnancyHandled: boolean;
+  metalsCleared: boolean;
+  deliveredWithMetal: boolean;
+  metalRecognized: boolean;
+  instructionGiven: boolean;
+  routineContactShield: boolean;
+  acceptable: boolean | null;
+  pathologyOk: boolean;
+  anatomyChecks: number;
+  quizOk: boolean;
+  qualityCoherent: boolean;
 };

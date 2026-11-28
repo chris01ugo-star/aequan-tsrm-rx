@@ -78,12 +78,19 @@ function placeOrtho(axial: THREE.OrthographicCamera, side: THREE.OrthographicCam
   return { axialHeight: 64, sideHeight: 132 };
 }
 
-export function Room3DViewport({ technique }: { technique: Technique }) {
+export function Room3DViewport({
+  technique,
+  roomMode,
+}: {
+  technique: Technique;
+  roomMode?: RoomMode;
+}) {
   const hostRef = useRef<HTMLDivElement>(null);
   const techniqueRef = useRef(technique);
-  const modeRef = useRef<RoomMode>("training");
+  const modeRef = useRef<RoomMode>(roomMode ?? "training");
   const resetRef = useRef(false);
-  const [mode, setMode] = useState<RoomMode>("training");
+  const [localMode, setLocalMode] = useState<RoomMode>("training");
+  const mode = roomMode ?? localMode;
 
   useEffect(() => {
     techniqueRef.current = technique;
@@ -223,14 +230,20 @@ export function Room3DViewport({ technique }: { technique: Technique }) {
   return (
     <div className="flex h-full min-h-0 flex-col bg-[#0B1320]">
       <div className="flex shrink-0 items-center justify-between gap-2 px-2 py-1.5">
-        <div className="flex min-w-0 rounded-full border border-[#2A486D] bg-[#111D30] p-0.5">
-          <ModeButton active={mode === "training"} onClick={() => setMode("training")}>
-            Training
-          </ModeButton>
-          <ModeButton active={mode === "exam"} onClick={() => setMode("exam")}>
-            Esame
-          </ModeButton>
-        </div>
+        {roomMode ? (
+          <p className="truncate text-[11px] text-[#9FB3C8]">
+            {roomMode === "training" ? "Fantoccio didattico · T7" : "Paziente in sala"}
+          </p>
+        ) : (
+          <div className="flex min-w-0 rounded-full border border-[#2A486D] bg-[#111D30] p-0.5">
+            <ModeButton active={mode === "training"} onClick={() => setLocalMode("training")}>
+              Training
+            </ModeButton>
+            <ModeButton active={mode === "exam"} onClick={() => setLocalMode("exam")}>
+              Esame
+            </ModeButton>
+          </div>
+        )}
         <button
           type="button"
           onClick={() => {

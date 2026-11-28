@@ -5,6 +5,7 @@ import { analyzeTechnique, DRL_CHEST_PA, EI_TARGET } from "@/lib/rxPhysics";
 import type {
   Analysis,
   ArtifactClaim,
+  Dosimetry,
   Evaluation,
   Finding,
   GeometryEvidence,
@@ -13,6 +14,7 @@ import type {
   ScoreLine,
   ScoreSection,
   Technique,
+  ExamConduct,
 } from "@/types/rx";
 
 export type RejectedExposure = {
@@ -286,14 +288,34 @@ function scoreJustification(
   return { score: clampScore(points, 5), findings, lines };
 }
 
+const OPEN_CONDUCT: ExamConduct = {
+  mode: "guided",
+  modalityOk: true,
+  identityConfirmed: true,
+  pregnancyHandled: true,
+  metalsCleared: true,
+  deliveredWithMetal: false,
+  metalRecognized: false,
+  instructionGiven: true,
+  routineContactShield: false,
+  acceptable: true,
+  pathologyOk: true,
+  anatomyChecks: 4,
+  quizOk: true,
+  qualityCoherent: true,
+};
+
 export function evaluateExam(
   technique: Technique,
   shotCount: number,
   cumulativeDap: number,
   review: ReviewDeclaration,
   rejected: RejectedExposure[] = [],
+  measured?: Dosimetry,
+  conduct: ExamConduct = OPEN_CONDUCT,
 ): Evaluation {
   const analysis = analyzeTechnique(technique);
+  if (measured) analysis.dosimetry = measured;
   const { dosimetry, geometry, collimation, faults } = analysis;
 
   const kvp = kvpPoints(technique.kvp);
@@ -725,38 +747,211 @@ export function evaluateExam(
     lines: justification.lines,
   };
 
-  const sections = [image, positioning, dose, artifacts];
-  const total = round1(sections.reduce((sum, section) => sum + section.score, 0));
-  const verdict =
-    total >= 27
-      ? "OTTIMO"
-      : total >= 24
-        ? "BUONO"
-        : total >= 18
-          ? "SUFFICIENTE"
-          : total >= 12
-            ? "INSUFFICIENTE"
-            : "GRAVEMENTE INSUFFICIENTE";
-
-  const errors = sections.flatMap((section) =>
+  const official = officialItems(conduct, {
+    positioning,
+    dose,
+    artifacts,
+    kvpPoints: kvp.points,
+    gridPoints,
+    focalPoints,
+    kvpFindings: kvp.findings,
+    gridFindings,
+    imageFindings: image.findings,
+    cumulativeDap,
+    dap: dosimetry.dapDGyCm2,
+  });
+  const errors = official.sections.flatMap((section) =>
     section.findings.filter((finding) => finding.level === "error"),
   );
   const summary =
-    errors.length === 0
-      ? "Tecnica consegnabile per questo quesito didattico. L'addensamento basale destro resta visibile e la dose sta entro i DRL."
-      : `Errori principali: ${errors
-          .slice(0, 3)
-          .map((finding) => finding.text.replace(/\.$/, ""))
-          .join(" · ")}.`;
+    official.blocked
+      ? `Criticità bloccante. ${official.blocking[0] ?? "Esito non superato."}`
+      : errors.length === 0
+        ? "Percorso consegnabile per questo quesito. L'addensamento basale destro resta il reperto da riconoscere e la dose sta entro i DRL."
+        : `Errori principali: ${errors
+            .slice(0, 3)
+            .map((finding) => finding.text.replace(/\.$/, ""))
+            .join(" · ")}.`;
 
   return {
-    sections,
-    total,
+    sections: official.sections,
+    total: official.total,
     max: 30,
-    verdict,
+    verdict: official.band,
+    band: official.band,
+    blocked: official.blocked,
+    blocking: official.blocking,
     summary,
     geometryEvidence: buildGeometryEvidence(technique, analysis, rejected),
   };
+}
+
+function officialItems(
+  conduct: ExamConduct,
+  parts: {
+    positioning: ScoreSection;
+    dose: ScoreSection;
+    artifacts: ScoreSection;
+    kvpPoints: number;
+    gridPoints: number;
+    focalPoints: number;
+    kvpFindings: Finding[];
+    gridFindings: Finding[];
+    imageFindings: Finding[];
+    cumulativeDap: number;
+    dap: number;
+  },
+): { sections: ScoreSection[]; total: number; band: string; blocked: boolean; blocking: string[] } {
+  const blocking: string[] = [];
+  const severeDrl = parts.dap > DRL_CHEST_PA.dapDGyCm2 * 2 || parts.cumulativeDap > DRL_CHEST_PA.dapDGyCm2 * 2;
+  if (conduct.mode === "exam") {
+    if (!conduct.modalityOk) blocking.push("Item A — metodica o distretto non riconosciuti.");
+    if (!conduct.identityConfirmed) blocking.push("Item B — identificazione attiva non eseguita.");
+    if (!conduct.pregnancyHandled) blocking.push("Item B — verifica delle controindicazioni non eseguita.");
+    if (conduct.deliveredWithMetal && !conduct.metalRecognized) {
+      blocking.push("Item B — corpo metallico radiopaco non rimosso e non riconosciuto sull'immagine.");
+    }
+    if (severeDrl) blocking.push("Item G — superamento grave del DRL.");
+  }
+
+  const itemA: ScoreSection = {
+    id: "A",
+    title: "Item A — Riconoscimento esame",
+    max: 3,
+    score: conduct.modalityOk ? 3 : 0,
+    findings: [
+      conduct.modalityOk
+        ? { level: "ok", text: "Metodica RX convenzionale e distretto torace coerenti con la richiesta RIS." }
+        : { level: "error", text: "Metodica o distretto non corrispondono alla richiesta. In esame è una criticità maggiore." },
+    ],
+    lines: [{ label: "Metodica e distretto", points: conduct.modalityOk ? 3 : 0, max: 3 }],
+  };
+
+  const identity = conduct.identityConfirmed ? 1 : 0;
+  const pregnancy = conduct.pregnancyHandled ? 1 : 0;
+  const metals = conduct.metalsCleared ? 1.5 : 0;
+  const voice = conduct.instructionGiven ? 0.5 : 0;
+  const itemB: ScoreSection = {
+    id: "B",
+    title: "Item B — Indicazioni, identificazione e preparazione",
+    max: 4,
+    score: clampScore(identity + pregnancy + metals + voice, 4),
+    findings: [
+      conduct.identityConfirmed
+        ? { level: "ok", text: "Identità confermata dal paziente sul braccialetto, a fronte della richiesta." }
+        : { level: "error", text: "Manca la conferma attiva di nome e data di nascita." },
+      conduct.pregnancyHandled
+        ? { level: "ok", text: "Controindicazioni verificate in modo coerente con l'anagrafica, senza test non indicati." }
+        : { level: "error", text: "Verifica di gravidanza o controindicazioni non eseguita." },
+      conduct.metalsCleared
+        ? { level: "ok", text: "Catenina e bottoni metallici rimossi prima dell'esposizione consegnata." }
+        : { level: "error", text: "Un oggetto metallico sul torace è rimasto nel campo dell'immagine consegnata." },
+    ],
+    lines: [
+      { label: "Identificazione attiva", points: identity, max: 1 },
+      { label: "Controindicazioni", points: pregnancy, max: 1 },
+      { label: "Rimozione metalli", points: metals, max: 1.5 },
+      { label: "Istruzione al paziente", points: voice, max: 0.5 },
+    ],
+  };
+
+  const itemC: ScoreSection = {
+    id: "C",
+    title: "Item C — Posizionamento, centratura e collimazione",
+    max: 6,
+    score: clampScore(parts.positioning.score * (6 / 8), 6),
+    findings: parts.positioning.findings,
+    lines: parts.positioning.lines.map((line) => ({
+      ...line,
+      points: round1(line.points * (6 / 8)),
+      max: round1(line.max * (6 / 8)),
+    })),
+  };
+
+  const dRaw = parts.kvpPoints + parts.gridPoints + Math.max(0, parts.focalPoints);
+  const itemD: ScoreSection = {
+    id: "D",
+    title: "Item D — Apparecchiature e parametri espositivi",
+    max: 5,
+    score: clampScore(dRaw * (5 / 6), 5),
+    findings: [...parts.kvpFindings, ...parts.gridFindings, ...parts.imageFindings.slice(0, 2)],
+    lines: [
+      { label: "kVp", points: round1(parts.kvpPoints * (5 / 6)), max: round1(3.5 * (5 / 6)) },
+      { label: "Griglia", points: round1(parts.gridPoints * (5 / 6)), max: round1(1.5 * (5 / 6)) },
+      { label: "Macchia focale", points: round1(Math.max(0, parts.focalPoints) * (5 / 6)), max: round1(5 / 6) },
+    ],
+  };
+
+  const itemE: ScoreSection = {
+    id: "E",
+    title: "Item E — Valutazione critica e Reject Analysis",
+    max: 4,
+    score: clampScore(parts.artifacts.score * (2 / 5) + (conduct.qualityCoherent ? 1 : 0.3) + (conduct.acceptable === true ? 1 : 0.4), 4),
+    findings: parts.artifacts.findings,
+    lines: [
+      { label: "Reject Analysis", points: round1(parts.artifacts.score * (2 / 5)), max: 2 },
+      { label: "Giudizio di qualità", points: conduct.qualityCoherent ? 1 : 0.3, max: 1 },
+      { label: "Accettabilità diagnostica", points: conduct.acceptable === true ? 1 : 0.4, max: 1 },
+    ],
+  };
+
+  const anatomy = Math.min(4, conduct.anatomyChecks) * 0.4;
+  const itemF: ScoreSection = {
+    id: "F",
+    title: "Item F — Anatomia radiologica",
+    max: 4,
+    score: clampScore(anatomy + (conduct.pathologyOk ? 2.4 : 0), 4),
+    findings: [
+      conduct.pathologyOk
+        ? { level: "ok", text: "Quadro riconosciuto: addensamento parenchimale lobare inferiore o medio destro." }
+        : { level: "error", text: "Il quadro patologico selezionato non corrisponde al quesito di polmonite lobare destra." },
+    ],
+    lines: [
+      { label: "Strutture verificate", points: round1(anatomy), max: 1.6 },
+      { label: "Quadro patologico", points: conduct.pathologyOk ? 2.4 : 0, max: 2.4 },
+    ],
+  };
+
+  const gDose = parts.dose.score * (2.2 / 7);
+  const gQuiz = conduct.quizOk ? 1 : 0;
+  const gShield = conduct.routineContactShield ? 0.15 : 0.5;
+  const itemG: ScoreSection = {
+    id: "G",
+    title: "Item G — Radioprotezione, sicurezza sala e invio PACS",
+    max: 4,
+    score: clampScore(gDose + gQuiz + gShield + 0.3, 4),
+    findings: [
+      ...parts.dose.findings.slice(0, 2),
+      conduct.quizOk
+        ? { level: "ok", text: "Quesito di radioprotezione corretto: la regola del 15% dimezza circa i mAs a parità di annerimento." }
+        : { level: "error", text: "Quesito di radioprotezione non corretto (D.Lgs. 101/2020, ottimizzazione)." },
+      conduct.routineContactShield
+        ? { level: "warn", text: "Schermatura a contatto sul campo, non indicata di routine sul torace secondo il consenso SIRM/AIFM/EFOMP." }
+        : { level: "ok", text: "Collimazione mirata, senza schermatura a contatto di routine." },
+      { level: "ok", text: "Erogazione solo a porta piombata chiusa. Immagine archiviata verso il PACS." },
+    ],
+    lines: [
+      { label: "Dose e DRL", points: round1(gDose), max: 2.2 },
+      { label: "Quesito D.Lgs. 101/2020", points: gQuiz, max: 1 },
+      { label: "Protezione del paziente", points: gShield, max: 0.5 },
+      { label: "Interlock e PACS", points: 0.3, max: 0.3 },
+    ],
+  };
+
+  const sections = [itemA, itemB, itemC, itemD, itemE, itemF, itemG];
+  const raw = round1(sections.reduce((sum, section) => sum + section.score, 0));
+  const blocked = blocking.length > 0;
+  const total = blocked ? Math.min(raw, 17) : raw;
+  return { sections, total, band: officialBand(total, blocked), blocked, blocking };
+}
+
+function officialBand(total: number, blocked: boolean): string {
+  if (blocked || total < 18) return "1–17 · Non superato";
+  if (total >= 29.5) return "30L · Eccellenza";
+  if (total >= 28) return "Fascia 28–30";
+  if (total >= 25) return "Fascia 25–27";
+  if (total >= 22) return "Fascia 22–24";
+  return "Fascia 18–21";
 }
 
 function aecFindings(technique: Technique): Finding[] {

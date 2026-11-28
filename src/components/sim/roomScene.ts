@@ -329,7 +329,7 @@ export function createRoomScene(): {
     stand.visible = !supine;
     table.visible = supine;
     detCenter.copy(supine ? SUPINE_DET : ERECT_DET);
-    const showAec = training && technique.exposureMode === "aec";
+    const showAec = training;
     aecGroup.visible = showAec;
     aecGroup.position.copy(detCenter);
     if (supine) {

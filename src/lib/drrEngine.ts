@@ -4,6 +4,7 @@
  */
 
 import { getThoraxCtVolume, type CtVolumeDescriptor } from "@/lib/ctVolume";
+import { stampUnremovedMetal } from "@/lib/foreignMetal";
 import { oidCm, toRoomGeometry } from "@/lib/rxGeometry";
 import type { LatentImage, Technique } from "@/types/rx";
 
@@ -373,7 +374,12 @@ function scatterWeight(technique: Technique): number {
  * Ray-marching conico sul volume TC. Ritorna null se WebGL2 non è disponibile,
  * così il chiamante usa il renderer procedurale.
  */
-export function renderDrr(technique: Technique, seed: number, exposure: DrrExposure): LatentImage | null {
+export function renderDrr(
+  technique: Technique,
+  seed: number,
+  exposure: DrrExposure,
+  unremovedMetalArtifact = false,
+): LatentImage | null {
   if (unavailable || typeof document === "undefined") return null;
   let current: Engine;
   try {
@@ -523,6 +529,7 @@ export function renderDrr(technique: Technique, seed: number, exposure: DrrExpos
   if (technique.markerSide === "DX" || technique.markerSide === "SX") {
     stampMarker(pixels, shutter, technique.markerSide, technique.collW, technique.collH);
   }
+  if (unremovedMetalArtifact) stampUnremovedMetal(pixels, shutter, DRR_SIZE, DRR_SIZE);
 
   return { width: DRR_SIZE, height: DRR_SIZE, pixels, shutter };
 }

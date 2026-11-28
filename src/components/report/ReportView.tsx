@@ -26,7 +26,7 @@ export function ReportView({
   onRepeat: () => void;
 }) {
   const [open, setOpen] = useState<string | null>(evaluation.sections[0]?.id ?? null);
-  const idoneo = evaluation.total >= 18;
+  const idoneo = !evaluation.blocked && evaluation.total >= 18;
   const ratio = evaluation.total / evaluation.max;
   const drl = shot.dosimetry.dapDGyCm2 > DRL_CHEST_PA.dapDGyCm2 || cumulativeDap > DRL_CHEST_PA.dapDGyCm2;
   const wrong =
@@ -62,14 +62,14 @@ export function ReportView({
       <article className="mx-auto mb-10 max-w-5xl rounded-none border border-[#2A486D] bg-[#16253B] shadow-[0_14px_40px_-20px_rgba(0,0,0,0.65)]">
         <header className="border-b-[6px] border-[#6BA3DE] px-4 py-5 sm:px-6">
           <p className="font-mono text-[10px] tracking-[0.24em] text-[#6BA3DE] uppercase">
-            TSRM RX · Pre-valutazione
+            TSRM RX · Item A–G
           </p>
-          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight">Referto di valutazione tecnica</h1>
+          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight">Referto di tirocinio</h1>
           <dl className="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
             <Meta k="Caso" v="Caso 01 — Torace PA" />
             <Meta k="Scala" v="/30" />
             <Meta k="Soglia" v="18/30" />
-            <Meta k="Esito" v={idoneo ? "Idoneo" : "Non idoneo"} />
+            <Meta k="Esito" v={evaluation.blocked ? "Non Superato" : idoneo ? "Superato" : "Non Superato"} />
           </dl>
         </header>
 
@@ -77,6 +77,7 @@ export function ReportView({
           <p className="font-display text-[44px] leading-none font-semibold tabular-nums sm:text-[48px]">
             {formatNum(evaluation.total, 1)}
             <span className="text-2xl text-[#9FB3C8]">/30</span>
+            <span className="ml-3 align-middle font-mono text-sm tracking-normal text-[#6BA3DE]">{evaluation.band}</span>
           </p>
           <p className="mt-1 font-mono text-xs tracking-[0.12em] text-[#9FB3C8]">{evaluation.verdict}</p>
           <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
@@ -92,9 +93,19 @@ export function ReportView({
           <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-[#111D30]">
             <div className="h-full bg-[#6BA3DE]" style={{ width: `${ratio * 100}%` }} />
           </div>
+          {evaluation.blocking.length > 0 ? (
+            <div className="mt-3 rounded-xl border border-[#C0392B] bg-[#3A1414] px-3 py-2 text-sm">
+              <p className="font-semibold">Criticità bloccanti</p>
+              <ul className="mt-1 space-y-1">
+                {evaluation.blocking.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {drl || wrong ? (
             <p className="mt-3 rounded-xl border border-[#C0392B] bg-[#3A1414] px-3 py-2 text-sm text-[#F8FAFC]">
-              {drl ? "Allerta critica: DAP oltre il DRL del torace PA. " : ""}
+              {drl ? "DAP oltre il DRL del torace PA. " : ""}
               {wrong ? "Proiezione o decubito non coerenti con il PA in ortostatismo." : ""}
             </p>
           ) : null}
@@ -102,8 +113,8 @@ export function ReportView({
         </section>
 
         <section className="border-b border-[#2A486D] px-4 py-4 sm:px-6">
-          <h2 className="font-display text-base font-bold">Corrispondenza EUR 16260</h2>
-          <p className="mt-1 text-xs text-[#9FB3C8]">Causa geometrica → evidenza radiografica</p>
+          <h2 className="font-display text-base font-bold">Delta tecnico</h2>
+          <p className="mt-1 text-xs text-[#9FB3C8]">Causa geometrica o fisica → evidenza radiografica</p>
           <ul className="mt-3 space-y-2">
             {evaluation.geometryEvidence.map((row) => (
               <li key={row.cause} className="text-sm leading-snug">
@@ -185,8 +196,8 @@ export function ReportView({
         </section>
 
         <section className="border-b border-[#2A486D] px-4 py-4 sm:px-6">
-          <h2 className="font-display text-base font-bold">Delta tecnico</h2>
-          <p className="mt-1 text-xs text-[#9FB3C8]">Tuo settaggio vs standard di riferimento</p>
+          <h2 className="font-display text-base font-bold">Confronto con il riferimento</h2>
+          <p className="mt-1 text-xs text-[#9FB3C8]">Settaggio eseguito rispetto allo standard del torace PA</p>
           <div className="mt-3 grid grid-cols-[1fr_1fr_1.2fr] text-[11px] text-[#9FB3C8]">
             <span>Parametro</span><span>Eseguito</span><span>Riferimento</span>
           </div>

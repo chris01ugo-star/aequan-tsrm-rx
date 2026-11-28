@@ -1,26 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { GeometryPanel } from "@/components/console/GeometryPanel";
-import { ParameterPanel } from "@/components/console/ParameterPanel";
-import { ViewerPanel, type ViewerTool } from "@/components/console/ViewerPanel";
-import { Room3DViewport } from "@/components/sim/Room3DViewport";
-import { exposeBtn, primaryBtn } from "@/components/ui/buttons";
-import { formatNum } from "@/lib/number";
+import { useEffect } from "react";
+import type { ViewerTool } from "@/components/console/ViewerPanel";
+import { MODE_LABEL, type Acceptance, type QualityReview, type StationId } from "@/components/sim/examSession";
+import { StationAcceptance } from "@/components/sim/stations/StationAcceptance";
+import { StationConsole } from "@/components/sim/stations/StationConsole";
+import { StationQuality } from "@/components/sim/stations/StationQuality";
+import { StationRoom } from "@/components/sim/stations/StationRoom";
+import { ghostBtn } from "@/components/ui/buttons";
 import { warmupDrr } from "@/lib/drrEngine";
-import { aecBlocksExposure, sameTechnique } from "@/lib/rxPhysics";
-import type { Analysis, ClinicalCase, ExposureShot, GrayWindow, Technique } from "@/types/rx";
+import type { Analysis, ClinicalCase, ExposureShot, GrayWindow, RejectReason, SimMode, Technique } from "@/types/rx";
 
-const MAX_SHOTS = 3;
+const STEPS = [
+  "1. Accettazione & Paziente",
+  "2. Sala RX & Posizionamento 3D",
+  "3. Sala Comandi & Acquisizione",
+  "4. Qualità, Anatomia & PACS",
+];
 
 export function SimulationScreen({
   clinical,
+  mode,
+  station,
   technique,
   analysis,
   shots,
   selectedIndex,
   acquiring,
   elapsedSec,
+  doorClosed,
+  acceptance,
+  quality,
   gray,
   zoom,
   panX,
@@ -29,22 +39,31 @@ export function SimulationScreen({
   tool,
   cumulativeDap,
   onTechnique,
+  onAcceptance,
+  onQuality,
+  onStation,
+  onDoor,
   onSelectShot,
   onGray,
   onView,
   onResetView,
-  onResetTechnique,
-  onBriefing,
+  onReject,
   onExpose,
-  onReview,
+  onDeliver,
+  onExit,
 }: {
   clinical: ClinicalCase;
+  mode: SimMode;
+  station: StationId;
   technique: Technique;
   analysis: Analysis;
   shots: ExposureShot[];
   selectedIndex: number;
   acquiring: boolean;
   elapsedSec: number;
+  doorClosed: boolean;
+  acceptance: Acceptance;
+  quality: QualityReview;
   gray: GrayWindow;
   zoom: number;
   panX: number;
@@ -53,216 +72,126 @@ export function SimulationScreen({
   tool: ViewerTool;
   cumulativeDap: number;
   onTechnique: (patch: Partial<Technique>) => void;
+  onAcceptance: (patch: Partial<Acceptance>) => void;
+  onQuality: (patch: Partial<QualityReview>) => void;
+  onStation: (station: StationId) => void;
+  onDoor: (closed: boolean) => void;
   onSelectShot: (index: number) => void;
   onGray: (patch: Partial<GrayWindow>) => void;
-  onView: (patch: {
-    zoom?: number;
-    panX?: number;
-    panY?: number;
-    overlay?: boolean;
-    tool?: ViewerTool;
-  }) => void;
+  onView: (patch: { zoom?: number; panX?: number; panY?: number; overlay?: boolean; tool?: ViewerTool }) => void;
   onResetView: () => void;
-  onResetTechnique: () => void;
-  onBriefing: () => void;
+  onReject: (index: number, reason: RejectReason) => void;
   onExpose: () => void;
-  onReview: () => void;
+  onDeliver: () => void;
+  onExit: () => void;
 }) {
-  const [tab, setTab] = useState<"room" | "position">("room");
-  const [layout, setLayout] = useState<"console" | "split">("console");
-  const shot = shots[selectedIndex] ?? null;
-  const latest = shots[shots.length - 1] ?? null;
-  const dirty = Boolean(latest && shot === latest && !sameTechnique(latest.technique, technique));
-  const atLimit = shots.length >= MAX_SHOTS;
-  const aecBlocked = aecBlocksExposure(technique);
-  const shownShot = shots[selectedIndex] ?? null;
-
   useEffect(() => {
     const id = window.setTimeout(() => warmupDrr(), 60);
     return () => window.clearTimeout(id);
   }, []);
-  const clock = `${String(Math.floor(elapsedSec / 60)).padStart(2, "0")}:${String(elapsedSec % 60).padStart(2, "0")}`;
+
+  const seconds = mode === "exam" ? Math.max(0, 600 - elapsedSec) : elapsedSec;
+  const clock = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+  const view = { gray, zoom, panX, panY, overlay, tool, onGray, onView, onResetView };
 
   return (
-    <div className="flex h-dvh flex-col gap-[10px] overflow-hidden bg-[#0B1320] p-[10px] text-[#F8FAFC]">
-      <header className="sticky top-0 z-10 grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-2xl border border-[#2A486D] bg-[#16253B]/95 px-4 py-2.5 shadow-sm backdrop-blur-md">
-        <div className="flex min-w-0 items-center gap-2">
-          <h1 className="truncate font-display text-base font-bold tracking-tight sm:text-lg">
-            {clinical.title}
+    <div className="flex h-dvh flex-col gap-2 overflow-hidden bg-[#0B1320] p-2 text-[#F8FAFC]">
+      <header className="shrink-0 rounded-xl border border-[#2A486D] bg-[#16253B] px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="min-w-0 truncate font-display text-base font-bold">
+            Caso 01 · {STEPS[station - 1].replace(/^\d+\.\s*/, "")}
           </h1>
-          <span className="shrink-0 rounded-full bg-[#F8FAFC] px-[10px] py-1 text-[11px] font-semibold text-[#1E324E]">
-            Sala RX · Torace
+          <span className="rounded-full bg-[#F8FAFC] px-2 py-0.5 text-[11px] font-semibold text-[#1E324E]">
+            {MODE_LABEL[mode]}
           </span>
-        </div>
-        <div className="rounded-2xl border border-[#2A486D] bg-[#111D30] px-3.5 py-1.5 font-mono text-sm tabular-nums">
-          {clock}
-        </div>
-        <div className="flex items-center justify-end gap-1">
-          <div className="mr-1 hidden items-center gap-1 lg:flex">
-            <span className="text-[10px] tracking-[0.12em] text-[#9FB3C8] uppercase">Layout</span>
-            <LayoutButton active={layout === "console"} onClick={() => setLayout("console")}>
-              Console
-            </LayoutButton>
-            <LayoutButton active={layout === "split"} onClick={() => setLayout("split")}>
-              Split 3D + PACS
-            </LayoutButton>
-          </div>
-          <button type="button" onClick={onBriefing} className="rounded-md px-[10px] py-[6px] text-[13px] text-[#9FB3C8] hover:bg-[#1E324E] hover:text-[#F8FAFC]">
-            Briefing RIS
-          </button>
-          <button type="button" onClick={onResetTechnique} className="rounded-md px-[10px] py-[6px] text-[13px] text-[#9FB3C8] hover:bg-[#1E324E] hover:text-[#F8FAFC]">
-            Reset parametri
-          </button>
-          <button
-            type="button"
-            disabled={shots.length < 1}
-            onClick={onReview}
-            className="rounded-md px-[10px] py-[6px] text-[13px] font-medium text-[#F8FAFC] hover:bg-[#1E324E] disabled:text-[#9FB3C8]"
-          >
-            Review & Termina
+          <span className="ml-auto font-mono text-sm tabular-nums">
+            {mode === "exam" && seconds === 0 ? "Tempo scaduto" : clock}
+          </span>
+          <button type="button" onClick={onExit} className={ghostBtn}>
+            Esci
           </button>
         </div>
+        <ol className="mt-2 flex flex-wrap gap-1">
+          {STEPS.map((label, index) => {
+            const id = (index + 1) as StationId;
+            const on = station === id;
+            return (
+              <li
+                key={label}
+                className={`rounded-md px-2 py-1 text-[11px] ${
+                  on ? "bg-[#F8FAFC] font-medium text-[#1E324E]" : "text-[#9FB3C8]"
+                }`}
+              >
+                {label}
+              </li>
+            );
+          })}
+        </ol>
       </header>
-
-      <div
-        className={`grid min-h-0 flex-1 grid-cols-1 gap-[10px] ${
-          layout === "split"
-            ? "lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(220px,280px)]"
-            : "lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1.3fr)_minmax(220px,0.92fr)]"
-        }`}
-      >
-        <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-[#2A486D] bg-[#16253B] shadow-sm">
-          <div className="m-2 flex shrink-0 rounded-2xl border border-[#2A486D] bg-[#111D30] p-1">
-            <Tab on={tab === "room"} onClick={() => setTab("room")}>Sala 3D</Tab>
-            <Tab on={tab === "position"} onClick={() => setTab("position")}>Posizionamento</Tab>
-          </div>
-          <div className="flex min-h-0 flex-1 flex-col">
-            {layout === "split" ? (
-              <>
-                <div className={tab === "room" ? "min-h-0 flex-1" : "min-h-[42%] flex-1"}>
-                  <Room3DViewport technique={technique} />
-                </div>
-                {tab === "position" ? (
-                  <div className="min-h-0 max-h-[46%] overflow-y-auto border-t border-[#2A486D] rx-scroll">
-                    <GeometryPanel
-                      technique={technique}
-                      onChange={onTechnique}
-                      pane="position"
-                      onOpenRoom={() => setTab("room")}
-                    />
-                  </div>
-                ) : null}
-              </>
-            ) : tab === "room" ? (
-              <div className="min-h-0 flex-1">
-                <Room3DViewport technique={technique} />
-              </div>
-            ) : (
-              <div className="min-h-0 flex-1 overflow-y-auto rx-scroll">
-                <GeometryPanel
-                  technique={technique}
-                  onChange={onTechnique}
-                  pane="position"
-                  onOpenRoom={() => setTab("room")}
-                />
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-[#2A486D] bg-[#16253B] shadow-sm">
-          <ViewerPanel
-            clinical={clinical}
-            technique={technique}
-            analysis={analysis}
-            shot={shot}
-            dirty={dirty}
-            acquiring={acquiring}
-            gray={gray}
-            zoom={zoom}
-            panX={panX}
-            panY={panY}
-            overlay={overlay}
-            tool={tool}
-            shots={shots}
-            selectedIndex={selectedIndex}
-            onSelectShot={onSelectShot}
-            onGray={onGray}
-            onView={onView}
-            onReset={onResetView}
-          />
-        </section>
-
-        <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-[#2A486D] bg-[#16253B] shadow-sm">
-          <ParameterPanel technique={technique} shot={shownShot} onChange={onTechnique} />
-        </section>
-      </div>
-
-      <footer className="flex shrink-0 items-center justify-between gap-3 rounded-xl border border-[#2A486D] bg-[#16253B]/90 px-4 py-2.5">
-        <div className="min-w-0 font-mono text-xs tabular-nums text-[#F8FAFC]">
-          Scatti {shots.length} / {MAX_SHOTS}
-          <span className="ml-3">Dose cumulativa {formatNum(cumulativeDap, 2)} dGy·cm²</span>
-        </div>
-        <p className="hidden text-center text-[11px] text-[#9FB3C8] xl:block">
-          Solo uso didattico · Non dispositivo medico
-        </p>
-        <div className="flex shrink-0 gap-2">
-          <button
-            type="button"
-            onClick={() => setLayout((current) => (current === "split" ? "console" : "split"))}
-            className="hidden rounded-md border border-[#2A486D] px-2.5 py-1.5 text-[12px] text-[#F8FAFC] hover:border-[#6BA3DE] lg:inline-flex"
-          >
-            {layout === "split" ? "Layout console" : "Espandi 3D"}
-          </button>
-          <button
-            type="button"
-            onClick={onExpose}
-            disabled={acquiring || atLimit || aecBlocked}
-            className={exposeBtn}
-          >
-            {acquiring ? "Acquisizione…" : atLimit ? "Limite 3 scatti" : "Avvia acquisizione RX"}
-          </button>
-          <button type="button" onClick={onReview} disabled={shots.length < 1 || acquiring} className={primaryBtn}>
-            Procedi a Review →
-          </button>
-        </div>
-      </footer>
+      {station === 1 ? (
+        <StationAcceptance
+          clinical={clinical}
+          mode={mode}
+          acceptance={acceptance}
+          onChange={onAcceptance}
+          onNext={() => {
+            if (mode === "exam" && (acceptance.modality !== "RX" || acceptance.district !== "TORACE")) {
+              onAcceptance({ itemAFailed: true });
+            }
+            onStation(2);
+          }}
+        />
+      ) : null}
+      {station === 2 ? (
+        <StationRoom
+          mode={mode}
+          technique={technique}
+          onTechnique={onTechnique}
+          onNext={() => {
+            onDoor(true);
+            onStation(3);
+          }}
+        />
+      ) : null}
+      {station === 3 ? (
+        <StationConsole
+          mode={mode}
+          clinical={clinical}
+          technique={technique}
+          analysis={analysis}
+          shots={shots}
+          selectedIndex={selectedIndex}
+          acquiring={acquiring}
+          doorClosed={doorClosed}
+          cumulativeDap={cumulativeDap}
+          {...view}
+          onTechnique={onTechnique}
+          onSelectShot={onSelectShot}
+          onDoor={onDoor}
+          onBack={() => {
+            onDoor(false);
+            onStation(2);
+          }}
+          onExpose={onExpose}
+          onNext={() => onStation(4)}
+        />
+      ) : null}
+      {station === 4 ? (
+        <StationQuality
+          clinical={clinical}
+          technique={technique}
+          analysis={analysis}
+          shots={shots}
+          selectedIndex={selectedIndex}
+          quality={quality}
+          {...view}
+          onQuality={onQuality}
+          onSelectShot={onSelectShot}
+          onReject={onReject}
+          onBack={() => onStation(3)}
+          onDeliver={onDeliver}
+        />
+      ) : null}
     </div>
-  );
-}
-
-function Tab({ on, onClick, children }: { on: boolean; onClick: () => void; children: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex-1 rounded-full px-[14px] py-[6px] text-xs font-medium ${
-        on ? "bg-[#F8FAFC] text-[#1E324E]" : "text-[#9FB3C8] hover:text-[#F8FAFC]"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function LayoutButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full px-2.5 py-1 text-[11px] ${
-        active ? "bg-[#F8FAFC] text-[#1E324E]" : "text-[#9FB3C8] hover:text-[#F8FAFC]"
-      }`}
-    >
-      {children}
-    </button>
   );
 }

@@ -5,6 +5,7 @@ import {
   skinFractions,
 } from "@/lib/chestRenderer";
 import { renderDrr } from "@/lib/drrEngine";
+import { stampUnremovedMetal } from "@/lib/foreignMetal";
 import { clamp } from "@/lib/number";
 import {
   anodeHeelAmplitude,
@@ -526,17 +527,22 @@ function attenuationToMono2(
   return clamp(mono, 0, 4095);
 }
 
-export function renderLatent(technique: Technique, seed: number): LatentImage {
+export function renderLatent(technique: Technique, seed: number, unremovedMetalArtifact = false): LatentImage {
   const analysis = analyzeTechnique(technique);
   try {
-    const drr = renderDrr(technique, seed, {
-      fluence: analysis.dosimetry.relativeExposure,
-      exposureTimeMs: analysis.dosimetry.exposureTimeMs,
-      ugMm: analysis.geometry.ugMm,
-      gridCutoff: analysis.geometry.gridCutoff,
-      gridAsymmetry: analysis.geometry.gridCutoffAsymmetry,
-      anodeHeel: analysis.geometry.anodeHeel,
-    });
+    const drr = renderDrr(
+      technique,
+      seed,
+      {
+        fluence: analysis.dosimetry.relativeExposure,
+        exposureTimeMs: analysis.dosimetry.exposureTimeMs,
+        ugMm: analysis.geometry.ugMm,
+        gridCutoff: analysis.geometry.gridCutoff,
+        gridAsymmetry: analysis.geometry.gridCutoffAsymmetry,
+        anodeHeel: analysis.geometry.anodeHeel,
+      },
+      unremovedMetalArtifact,
+    );
     if (drr) return drr;
   } catch {
     // WebGL2 assente o shader non linkato: resta il torace procedurale.
@@ -604,6 +610,7 @@ export function renderLatent(technique: Technique, seed: number): LatentImage {
     }
   }
 
+  if (unremovedMetalArtifact) stampUnremovedMetal(pixels, shutter, width, height);
   return { width, height, pixels, shutter };
 }
 

@@ -1,8 +1,9 @@
 "use client";
 
-import { Bell, FolderOpen, LayoutDashboard, Library, PanelLeft, Search } from "lucide-react";
+import { Bell, FolderOpen, GraduationCap, LayoutDashboard, Library, PanelLeft, Search } from "lucide-react";
 import Image from "next/image";
 import { useState, type ReactNode } from "react";
+import { ImageStudioDialog } from "@/components/sim/ImageStudioDialog";
 import { primaryBtn } from "@/components/ui/buttons";
 
 export type DashView = "library" | "archive" | "analytics";
@@ -33,6 +34,7 @@ export function DashboardShell({
   children: ReactNode;
 }) {
   const [bellOpen, setBellOpen] = useState(false);
+  const [teacher, setTeacher] = useState(false);
 
   return (
     <div className="flex h-dvh overflow-hidden bg-[#0B1320] text-[#F8FAFC]">
@@ -80,6 +82,17 @@ export function DashboardShell({
               </button>
             );
           })}
+          <button
+            type="button"
+            onClick={() => setTeacher(true)}
+            title="Area Docente"
+            className={`mt-auto flex h-10 items-center gap-2 rounded-xl px-2 text-[13px] font-medium text-[#9FB3C8] hover:bg-[#1E324E] hover:text-[#F8FAFC] ${
+              collapsed ? "justify-center" : ""
+            }`}
+          >
+            <GraduationCap size={16} />
+            {collapsed ? null : <span className="truncate">Area Docente</span>}
+          </button>
         </nav>
         <div className="p-[10px]">
           <div className={`flex items-center gap-2 ${collapsed ? "justify-center" : ""}`}>
@@ -143,6 +156,7 @@ export function DashboardShell({
         </header>
         <div className="min-h-0 flex-1 overflow-y-auto rx-scroll">{children}</div>
       </div>
+      {teacher ? <ImageStudioDialog onClose={() => setTeacher(false)} /> : null}
     </div>
   );
 }

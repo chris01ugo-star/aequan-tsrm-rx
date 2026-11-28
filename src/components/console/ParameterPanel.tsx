@@ -181,15 +181,16 @@ export function ParameterPanel({ technique, shot = null, onChange }: ParameterPa
                 label="DAP"
                 value={formatNum(acquired.dapDGyCm2, 2)}
                 unit="dGy·cm²"
-                ratio={acquired.dapDGyCm2 / DRL_CHEST_PA.dapDGyCm2}
-                limitLabel={`DRL ${formatNum(DRL_CHEST_PA.dapDGyCm2, 2)}`}
+                ratio={acquired.dapDGyCm2 / (shot.drlDapDGyCm2 ?? DRL_CHEST_PA.dapDGyCm2)}
+                limitLabel={`DRL ${formatNum(shot.drlDapDGyCm2 ?? DRL_CHEST_PA.dapDGyCm2, 2)}`}
               />
               <DoseReadout
                 label="ESD"
                 value={formatNum(acquired.esdMgy, 3)}
                 unit="mGy"
-                ratio={acquired.esdMgy / DRL_CHEST_PA.esdMgy}
-                limitLabel={`DRL ${formatNum(DRL_CHEST_PA.esdMgy, 2)}`}
+                ratio={shot.source === "plate" ? 0 : acquired.esdMgy / DRL_CHEST_PA.esdMgy}
+                limitLabel={shot.source === "plate" ? "kerma × BSF" : `DRL ${formatNum(DRL_CHEST_PA.esdMgy, 2)}`}
+                absolute={shot.source === "plate"}
               />
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <div>
@@ -217,7 +218,7 @@ export function ParameterPanel({ technique, shot = null, onChange }: ParameterPa
                 mAs erogati {formatNum(shot.technique.mas, 1)} · t {formatNum(acquired.exposureTimeMs, 0)} ms
               </p>
               <ul className="mt-2 space-y-1">
-                {post?.warnings.slice(0, 3).map((warning) => (
+                {(shot.source === "plate" ? plateNotes(shot) : (post?.warnings ?? [])).slice(0, 3).map((warning) => (
                   <li
                     key={warning.text}
                     className={`text-[10px] leading-snug ${
@@ -252,20 +253,41 @@ export function ParameterPanel({ technique, shot = null, onChange }: ParameterPa
   );
 }
 
+function plateNotes(shot: ExposureShot): { level: "alert" | "info"; text: string }[] {
+  const notes: { level: "alert" | "info"; text: string }[] = [];
+  const di = shot.dosimetry.di;
+  if (di > 3) {
+    notes.push({ level: "alert", text: "DI > +3 (IEC 62494-1): fluenza al detettore compatibile con dose creep." });
+  } else if (di < -3) {
+    notes.push({ level: "alert", text: "DI < −3 (IEC 62494-1): fluenza insufficiente, atteso rumore quantico." });
+  } else if (di > 1 || di < -1) {
+    notes.push({ level: "info", text: "DI fuori dalla banda ottimale −1 … +1." });
+  }
+  if (shot.drlDapDGyCm2 && shot.dosimetry.dapDGyCm2 > shot.drlDapDGyCm2) {
+    notes.push({
+      level: "alert",
+      text: `DAP sopra il DRL del distretto (${formatNum(shot.drlDapDGyCm2, 2)} dGy·cm²).`,
+    });
+  }
+  return notes;
+}
+
 function DoseReadout({
   label,
   value,
   unit,
   ratio,
   limitLabel,
+  absolute = false,
 }: {
   label: string;
   value: string;
   unit: string;
   ratio: number;
   limitLabel: string;
+  absolute?: boolean;
 }) {
-  const color = ratio <= 0.75 ? "#22C55E" : ratio <= 1 ? "#F39C12" : "#EF4444";
+  const color = absolute ? "#6BA3DE" : ratio <= 0.75 ? "#22C55E" : ratio <= 1 ? "#F39C12" : "#EF4444";
   const state = ratio <= 0.75 ? "SOTTO DRL" : ratio <= 1 ? "VICINO AL DRL" : "SOPRA DRL";
   const width = Math.min(ratio / 1.6, 1) * 100;
   const limitMark = (1 / 1.6) * 100;
@@ -287,7 +309,7 @@ function DoseReadout({
         />
       </div>
       <div className="mt-0.5 flex justify-between font-mono text-[9px] tabular-nums">
-        <span style={{ color }}>{state}</span>
+        <span style={{ color }}>{absolute ? "misura" : state}</span>
         <span className="text-muted">{limitLabel}</span>
       </div>
     </div>

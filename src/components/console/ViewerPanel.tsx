@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, type CSSProperties, type PointerEvent } from "react";
+import { useEffect, useRef, useSyncExternalStore, type CSSProperties, type PointerEvent } from "react";
 import { overlayMarkers } from "@/lib/chestRenderer";
+import { getImageStudioSnapshot, sourceLabel, subscribeImageStudio } from "@/lib/imageStore";
 import { clamp, formatNum } from "@/lib/number";
 import {
   computeGeometry,
@@ -78,6 +79,9 @@ export function ViewerPanel({
     py: number;
   } | null>(null);
 
+  const studioRev = useSyncExternalStore(subscribeImageStudio, getImageStudioSnapshot, () => "0");
+  void studioRev;
+  const sourceLine = shot?.sourceLabel ?? sourceLabel();
   const shown = shot?.technique ?? technique;
   const dose = shot?.dosimetry ?? analysis.dosimetry;
   const frameW = shot?.latent.width ?? LATENT_WIDTH;
@@ -203,7 +207,7 @@ export function ViewerPanel({
           </div>
         </div>
 
-        <Corner className="top-2 left-2" lines={topLeft(clinical, shot)} />
+            <Corner className="top-2 left-2" lines={topLeft(clinical, shot, sourceLine)} />
         <Corner className="top-2 right-2 text-right" lines={topRight(shown)} />
         <Corner className="bottom-2 left-2" lines={bottomLeft(shown, shot)} />
         <Corner
@@ -355,13 +359,14 @@ function Thumb({
   );
 }
 
-function topLeft(clinical: ClinicalCase, shot: ExposureShot | null): string[] {
+function topLeft(clinical: ClinicalCase, shot: ExposureShot | null, sourceLine: string): string[] {
   return [
     "AEQUAN DIDATTICA",
     clinical.pseudoId,
     clinical.demographics,
     `${clinical.weightKg} kg   ${clinical.heightCm} cm`,
     clinical.bodyPart,
+    sourceLine,
     shot ? shot.timestampLabel : "NON ACQUISITO",
   ];
 }

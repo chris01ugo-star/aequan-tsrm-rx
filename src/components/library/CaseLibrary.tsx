@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { BriefingDialog } from "@/components/library/BriefingDialog";
 import { DrlDialog } from "@/components/library/DrlDialog";
-import type { ClinicalCase } from "@/types/rx";
+import type { ClinicalCase, SimMode } from "@/types/rx";
 
 type Filter = "all" | "todo" | "active" | "done";
 
@@ -32,7 +32,7 @@ export function CaseLibrary({
   query: string;
   completed: boolean;
   inProgress: boolean;
-  onStart: () => void;
+  onStart: (mode: SimMode) => void;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [mode, setMode] = useState<"modalities" | "cases">("modalities");
@@ -87,8 +87,7 @@ export function CaseLibrary({
             {mode === "cases" ? "Radiologia tradizionale" : "Modalità del pilota"}
           </h1>
           <p className="mt-1 max-w-[576px] text-sm leading-relaxed text-[#9FB3C8]">
-            Scegli la modalità, poi il caso. Il briefing clinico si apre prima della sala: i parametri
-            tecnici restano da calibrare.
+            Scegli la modalità, poi il caso. La richiesta RIS si apre prima dell&apos;accettazione.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {FILTERS.map((item) => (
